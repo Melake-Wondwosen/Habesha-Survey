@@ -6,7 +6,8 @@ import { Button, Field, Notice, Spinner, inputClass } from './ui'
 
 // Shared by the main sign-in page and the admin sign-in page.
 // `need` = 'admin' makes the server turn away anyone who isn't an admin.
-export default function SignInForm({ need, onDone, submitLabel = 'Sign in' }) {
+// `onWatch` reports typing to the sign-in logo: (field, value, { username, password })
+export default function SignInForm({ need, onDone, onWatch, submitLabel = 'Sign in' }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState('')
@@ -67,7 +68,11 @@ export default function SignInForm({ need, onDone, submitLabel = 'Sign in' }) {
         <input
           className={inputClass}
           value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          onChange={(e) => {
+            setUsername(e.target.value)
+            onWatch?.('username', e.target.value, { username: e.target.value, password })
+          }}
+          onFocus={(e) => onWatch?.('username', e.target.value, { username, password })}
           autoComplete="username"
           autoCapitalize="none"
           autoCorrect="off"
@@ -81,7 +86,11 @@ export default function SignInForm({ need, onDone, submitLabel = 'Sign in' }) {
             className={`${inputClass} pr-14`}
             type={showPw ? 'text' : 'password'}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value)
+              onWatch?.('password', e.target.value, { username, password: e.target.value })
+            }}
+            onFocus={(e) => onWatch?.('password', e.target.value, { username, password })}
             autoComplete="current-password"
             autoCapitalize="none"
             autoCorrect="off"

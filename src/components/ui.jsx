@@ -13,19 +13,67 @@ export function Logo({ className = '', ...rest }) {
   return <img src={logo} alt="Habesha" className={className} draggable="false" {...rest} />
 }
 
-// Sign-in logo: the face spins a full turn, winks her right eye, and settles
-// back where she started. The wordmark under her stays still.
-// Eyelid position is in % of logo-face.png (222 x 220): right eye x 126-158, y 126-138.
-export function AnimatedLogo({ className = '', glow = false, ...rest }) {
+// Sign-in logo whose eyes react to the form. Her eyes are redrawn as shapes
+// over logo-face.png (222 x 220) so they can move:
+//   idle      looks straight at you
+//   watch     follows the text as you type (squints at a password)
+//   confused  head tilt, one eye half shut, a "?" beside her
+const EYES = [80, 142] // centre x of each eye; both sit at y 132
+const almond = (cx) => `M${cx - 21} 132Q${cx - 2} 118 ${cx + 20} 131Q${cx - 2} 147 ${cx - 21} 132Z`
+
+export function WatchingLogo({ mood = 'idle', field = null, progress = 0, glow = false, className = '', ...rest }) {
+  const watching = mood === 'watch'
+  const confused = mood === 'confused'
+  // Pupils: across with the text, down towards the form while typing
+  const px = watching ? -8 + 16 * Math.min(1, progress) : confused ? 2 : 0
+  const py = watching ? (field === 'password' ? 5 : 3.5) : confused ? -2 : 0
+  // Upper lids: 0 open, 1 shut
+  const lid = (i) => (watching && field === 'password' ? 0.5 : confused && i === 1 ? 0.55 : 0)
+
   return (
     <div className={`flex flex-col items-center ${className}`} {...rest}>
-      <div className="logo-spin relative w-[69%]">
-        <img src={logoFace} alt="Habesha" className={`block w-full ${glow ? 'logo-night' : ''}`} draggable="false" />
+      <div className="relative w-[69%]">
+        <div className="face-tilt relative" style={{ transform: confused ? 'rotate(-9deg)' : 'rotate(0deg)' }}>
+          <img src={logoFace} alt="Habesha" className={`block w-full ${glow ? 'logo-night' : ''}`} draggable="false" />
+          <svg viewBox="0 0 222 220" aria-hidden="true" className="absolute inset-0 w-full h-full">
+            <defs>
+              {EYES.map((cx, i) => (
+                <clipPath key={i} id={`eye-clip-${i}`}>
+                  <path d={almond(cx)} />
+                </clipPath>
+              ))}
+            </defs>
+            {EYES.map((cx, i) => (
+              <g key={i}>
+                <path d={almond(cx)} fill="rgb(202, 233, 245)" />
+                <g clipPath={`url(#eye-clip-${i})`}>
+                  <g className="eye-move" style={{ transform: `translate(${px}px, ${py}px)` }}>
+                    <circle cx={cx} cy="132" r="8.6" fill="#1d1612" />
+                    <circle cx={cx + 3.4} cy="129.6" r="1.7" fill="#fff" />
+                  </g>
+                  <rect
+                    className="eye-lid"
+                    x={cx - 23}
+                    y="117"
+                    width="46"
+                    height="16"
+                    fill="rgb(131, 81, 39)"
+                    stroke="#1b120b"
+                    strokeWidth="2.4"
+                    style={{ transform: `scaleY(${lid(i)})` }}
+                  />
+                </g>
+                <path d={almond(cx)} fill="none" stroke="#1b120b" strokeWidth="3.4" strokeLinejoin="round" />
+              </g>
+            ))}
+          </svg>
+        </div>
         <span
           aria-hidden="true"
-          className="logo-wink absolute rounded-[50%]"
-          style={{ left: '55.4%', width: '17%', top: '54.5%', height: '9.5%', background: 'rgb(131, 81, 39)' }}
-        />
+          className={`absolute -right-3 -top-1 font-serif font-bold text-3xl text-gold-dark transition-all duration-300 ${confused ? 'opacity-100 scale-100 rotate-12' : 'opacity-0 scale-50 rotate-0'}`}
+        >
+          ?
+        </span>
       </div>
       <img src={logoWord} alt="" aria-hidden="true" className={`block w-full -mt-px ${glow ? 'logo-night' : ''}`} draggable="false" />
     </div>
