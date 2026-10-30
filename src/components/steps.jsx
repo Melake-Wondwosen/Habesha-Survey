@@ -1,14 +1,16 @@
-import { BRANDS, REASONS, REASON_QUESTION } from '../config'
+import { BRANDS, REASONS, REASON_QUESTION, VISIBILITY_ITEMS } from '../config'
 import { useEffect, useRef, useState } from 'react'
 import { requestOutlet } from '../api'
 import { latestFix } from '../location'
 import { findOutlet, localOutlet, normOutletId } from '../outlets'
 import { Button, Field, Notice, Sheet, Spinner, inputClass } from './ui'
 
+export const STEP_COUNT = 5
+
 function Title({ n, children, sub }) {
   return (
     <div className="mb-5 anim-rise">
-      <p className="text-xs uppercase tracking-wider text-gold-dark font-semibold">Step {n} of 4</p>
+      <p className="text-xs uppercase tracking-wider text-gold-dark font-semibold">Step {n} of {STEP_COUNT}</p>
       <h2 className="font-serif text-2xl mt-1 leading-tight">{children}</h2>
       {sub && <p className="text-sm text-ink/60 mt-1">{sub}</p>}
     </div>
@@ -301,11 +303,94 @@ export function StepCrates({ data, set }) {
   )
 }
 
-// Step 4: single-select reason
+// Line icons for the visibility tiles
+const VIS_ICON = {
+  ABSPoster: <><rect x="5" y="3" width="14" height="18" rx="1.5" /><path d="M8 7h8M8 11h8M8 15h5" /></>,
+  PaperPoster: <><path d="M6 3h9l3 3v15H6z" /><path d="M15 3v3h3" /><path d="M9 11h6M9 15h4" /></>,
+  BottleCutout: <><path d="M10 2h4v4l1.5 2.5V20a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2V8.5L10 6z" /><path d="M8.5 12h7" /></>,
+  Banner: <><path d="M4 4h16v10l-8 3-8-3z" /><path d="M4 4v17M20 4v17" /></>,
+  TableCloth: <><path d="M3 9h18l-2 5H5z" /><path d="M7 14v6M17 14v6" /></>,
+  LEDLight: <><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5.9 1.2.9 2.1h5.2c0-.9.3-1.6.9-2.1A6 6 0 0 0 12 3z" /></>,
+  Fridge: <><rect x="6" y="2" width="12" height="20" rx="2" /><path d="M6 10h12M9 5v2M9 13v3" /></>,
+}
+
+// Step 4: does Habesha have POSM here, and which pieces
+export function StepVisibility({ data, set }) {
+  const items = data.posmItems || []
+  const toggle = (key) => set({ posmItems: items.includes(key) ? items.filter((k) => k !== key) : [...items, key] })
+  const choose = (has) => set({ hasPosm: has, posmItems: has ? items : [] })
+
+  return (
+    <>
+      <Title n={4} sub="Look around the outlet, inside and outside.">
+        Does Habesha have POSM here?
+      </Title>
+
+      <div className="grid grid-cols-2 gap-3 anim-rise">
+        {[
+          [true, 'Yes'],
+          [false, 'No'],
+        ].map(([v, label]) => {
+          const on = data.hasPosm === v
+          return (
+            <button
+              key={label}
+              type="button"
+              onClick={() => choose(v)}
+              className={`pick min-h-[60px] rounded-2xl border text-lg font-semibold active:scale-[0.98] ${
+                on ? (v ? 'gold-gradient text-ink border-gold shadow-md' : 'bg-ink text-paper border-ink') : 'bg-white border-ink/15'
+              }`}
+            >
+              {label}
+            </button>
+          )
+        })}
+      </div>
+
+      {data.hasPosm === true && (
+        <div className="mt-6 anim-rise">
+          <div className="flex items-baseline justify-between mb-3">
+            <p className="font-semibold">Which ones can you see?</p>
+            <p className="text-sm text-ink/55">{items.length ? `${items.length} selected` : 'Tap all that apply'}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5 stagger">
+            {VISIBILITY_ITEMS.map((it, i) => {
+              const on = items.includes(it.key)
+              return (
+                <button
+                  key={it.key}
+                  type="button"
+                  style={{ '--i': i }}
+                  onClick={() => toggle(it.key)}
+                  aria-pressed={on}
+                  className={`pick relative min-h-[92px] rounded-2xl border p-3 flex flex-col items-start justify-between text-left active:scale-[0.97] ${
+                    on ? 'bg-ink text-paper border-ink' : 'bg-white border-ink/15'
+                  }`}
+                >
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className={on ? 'text-gold' : 'text-ink/70'}>
+                    {VIS_ICON[it.key]}
+                  </svg>
+                  <span className="text-[15px] font-semibold leading-tight">{it.label}</span>
+                  <span className={`absolute top-3 right-3 w-6 h-6 rounded-full flex items-center justify-center ${on ? 'gold-gradient text-ink' : 'border-2 border-ink/20'}`}>
+                    {on && (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7" /></svg>
+                    )}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+// Step 5: single-select reason
 export function StepReason({ data, set }) {
   return (
     <>
-      <Title n={4}>{REASON_QUESTION}</Title>
+      <Title n={5}>{REASON_QUESTION}</Title>
       <div className="space-y-2.5 stagger">
         {REASONS.map((r, i) => {
           const on = data.reason === r
@@ -341,5 +426,6 @@ export const stepReady = [
   (d) => d.outletId.trim() !== '' && (d.picked || d.offline),
   (d) => d.order.length > 0 && (!d.order.includes('Other') || d.otherBrand.trim() !== ''),
   () => true,
+  (d) => d.hasPosm === false || (d.hasPosm === true && (d.posmItems || []).length > 0),
   (d) => d.reason !== '' && (d.reason !== 'Other' || d.reasonOther.trim() !== ''),
 ]

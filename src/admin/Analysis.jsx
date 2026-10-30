@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { managerData } from '../api'
-import { BRANDS, REASONS } from '../config'
+import { BRANDS, REASONS, VISIBILITY_ITEMS } from '../config'
 import { latestPerOutlet, marketShare, num, pct, text } from '../manager/calc'
 import { Notice, Spinner } from '../components/ui'
 
@@ -32,6 +32,22 @@ function periodFrom(key) {
 }
 const label = (v) => text(v).trim() || 'Not set'
 const fmt = (n) => (n == null ? '–' : Math.round(n).toLocaleString())
+
+// Habesha POSM across the latest survey per outlet. Older surveys without the
+// question are left out of the base.
+function posmStats(outlets) {
+  const asked = outlets.filter((s) => s.posm === 'Yes' || s.posm === 'No')
+  const yes = asked.filter((s) => s.posm === 'Yes')
+  const n = asked.length
+  return {
+    asked: n,
+    rate: n ? yes.length / n : null,
+    items: VISIBILITY_ITEMS.map((it) => {
+      const c = asked.filter((s) => Number(s['posm' + it.key]) === 1).length
+      return { ...it, count: c, rate: n ? c / n : null }
+    }),
+  }
+}
 
 // Volume share for one brand inside a group, using the same rule as the
 // market share table: only outlets where every brand sold has a crate count.
@@ -73,6 +89,7 @@ export default function Analysis() {
   const outlets = useMemo(() => latestPerOutlet(rows), [rows])
   const stats = useMemo(() => brandStats(rows), [rows])
   const bas = useMemo(() => new Set(rows.map((s) => text(s.baId))).size, [rows])
+  const posm = useMemo(() => posmStats(outlets), [outlets])
 
   const groups = useMemo(() => {
     const by = new Map()
@@ -84,7 +101,7 @@ export default function Analysis() {
     return [...by.entries()]
       .map(([name, list]) => {
         const st = brandStats(list)
-        return { name, surveys: list.length, outlets: st.share.outlets, crates: st.share.totalCrates, ours: st.ours, top: st.top }
+        return { name, surveys: list.length, outlets: st.share.outlets, crates: st.share.totalCrates, ours: st.ours, top: st.top, posm: posmStats(latestPerOutlet(list)).rate }
       })
       .sort((a, b) => b.outlets - a.outlets || b.surveys - a.surveys)
   }, [rows, group])
@@ -226,7 +243,7 @@ export default function Analysis() {
                 }
               >
                 <div className="overflow-x-auto -mx-1 max-h-[480px] overflow-y-auto">
-                  <table className="w-full text-sm min-w-[620px]">
+                  <table className="w-full text-sm min-w-[680px]">
                     <thead className="sticky top-0 bg-white">
                       <tr className="text-[11px] uppercase tracking-wider text-gold-dark text-left">
                         <th className="py-2 px-1 font-semibold">{GROUPS.find((g) => g.key === group).label}</th>
@@ -235,6 +252,7 @@ export default function Analysis() {
                         <th className="py-2 px-1 font-semibold text-right">Crates/week</th>
                         <th className="py-2 px-1 font-semibold text-right">{OURS.label} share</th>
                         <th className="py-2 px-1 font-semibold text-right">{OURS.label} #1</th>
+                        <th className="py-2 px-1 font-semibold text-right">POSM</th>
                         <th className="py-2 px-1 font-semibold">Leading brand</th>
                       </tr>
                     </thead>
@@ -247,6 +265,7 @@ export default function Analysis() {
                           <td className="py-2.5 px-1 text-right tabular-nums">{fmt(g.crates)}</td>
                           <td className="py-2.5 px-1 text-right tabular-nums font-semibold">{pct(g.ours?.volumeShare)}</td>
                           <td className="py-2.5 px-1 text-right tabular-nums">{pct(g.ours?.topIn)}</td>
+                          <td className="py-2.5 px-1 text-right tabular-nums">{pct(g.posm)}</td>
                           <td className="py-2.5 px-1">
                             {g.top ? (
                               <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${g.top.ours ? 'gold-gradient text-ink' : 'bg-ink text-paper'}`}>{g.top.label}</span>
@@ -258,6 +277,29 @@ export default function Analysis() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </Card>
+
+              <Card
+                title={`${OURS.label} visibility`}
+                sub={posm.asked ? `${posm.asked} outlets answered` : 'No answers yet'}
+                right={
+                  <div className="text-right">
+                    <p className="font-serif text-3xl text-gold-dark tabular-nums leading-none">{pct(posm.rate)}</p>
+                    <p className="text-[11px] uppercase tracking-wider text-ink/55 mt-1">outlets with POSM</p>
+                  </div>
+                }
+              >
+                <div className="grid sm:grid-cols-2 gap-x-8 gap-y-2">
+                  {[...posm.items].sort((a, b) => b.count - a.count).map((it) => (
+                    <div key={it.key} className="flex items-center gap-2 text-sm">
+                      <span className="w-28 shrink-0 text-ink/75">{it.label}</span>
+                      <span className="flex-1 h-2.5 rounded-full bg-mist overflow-hidden">
+                        <span className="block h-full rounded-full gold-gradient" style={{ width: `${(it.rate || 0) * 100}%` }} />
+                      </span>
+                      <span className="w-12 text-right tabular-nums">{pct(it.rate).replace('.0%', '%')}</span>
+                    </div>
+                  ))}
                 </div>
               </Card>
 

@@ -48,7 +48,11 @@ function build() {
         id: `SRV-${Math.round(when)}-${i}${v}`, date: new Date(Math.min(when, now - 60000)).toISOString(), baId: bas[o.ba].id, baName: bas[o.ba].name,
         outletId: o.id, outletName: o.name, division: o.division, agent: o.agent, parentTerritory: o.parentTerritory, territory: o.territory, city: '', otherBrandName: '', reason: pick(REASONS.slice(0, 6)), reasonOther: '',
         lat: o.lat, lng: o.lng, accuracy: 10 + Math.round(rnd() * 25),
+        posm: rnd() < 0.62 ? 'Yes' : 'No',
       }
+      ;['ABSPoster', 'PaperPoster', 'BottleCutout', 'Banner', 'TableCloth', 'LEDLight', 'Fridge'].forEach((k, j) => {
+        row['posm' + k] = row.posm === 'Yes' && rnd() < [0.5, 0.7, 0.3, 0.45, 0.25, 0.15, 0.35][j] ? 1 : 0
+      })
       BRANDS.forEach((b) => {
         const r = order.findIndex((x) => x.key === b.key)
         row['rank' + b.key] = r < 0 ? '' : r + 1

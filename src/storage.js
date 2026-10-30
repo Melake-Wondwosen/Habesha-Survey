@@ -5,7 +5,7 @@ const QUEUE_KEY = 'offline_surveys'
 const WHY_KEY = 'offline_surveys_why'
 const DONE_KEY = 'surveys_done'
 const SYNC_KEY = 'last_sync'
-const DRAFT_KEY = 'survey_draft'
+const DRAFT_KEY = 'survey_draft_v2'
 
 // In-memory copy so the app still works where storage is blocked (private
 // browsing, sandboxed previews). It just won't survive a reload there.

@@ -6,10 +6,10 @@ import { setActivity } from '../presence'
 import { RETURN_HOME_MS } from '../config'
 import { clearDraft, countDone, getDraft, getUser, pushQueue, setDraft } from '../storage'
 import { Button, Sheet, Spinner } from '../components/ui'
-import { StepCrates, StepOutlet, StepRank, StepReason, stepReady } from '../components/steps'
+import { STEP_COUNT, StepCrates, StepOutlet, StepRank, StepReason, StepVisibility, stepReady } from '../components/steps'
 
-const EMPTY = { outletName: '', outletId: '', division: '', agent: '', parentTerritory: '', territory: '', area: '', picked: false, offline: false, order: [], otherBrand: '', crates: {}, reason: '', reasonOther: '' }
-const STEPS = [StepOutlet, StepRank, StepCrates, StepReason]
+const EMPTY = { outletName: '', outletId: '', division: '', agent: '', parentTerritory: '', territory: '', area: '', picked: false, offline: false, order: [], otherBrand: '', crates: {}, hasPosm: null, posmItems: [], reason: '', reasonOther: '' }
+const STEPS = [StepOutlet, StepRank, StepCrates, StepVisibility, StepReason]
 
 function makeId() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -45,6 +45,8 @@ function buildRecord(d, user, location, start) {
     ranks,
     crates,
     otherBrandName: otherRanked ? d.otherBrand.trim() : '',
+    hasPosm: d.hasPosm,
+    posmItems: d.hasPosm ? d.posmItems : [],
     reason: d.reason,
     reasonOther: d.reason === 'Other' ? d.reasonOther.trim() : '',
   }
@@ -112,7 +114,7 @@ export default function Survey() {
   useEffect(() => {
     scroller.current?.scrollTo(0, 0)
     const where = data.outletId.trim() ? `${data.outletName.trim() || 'outlet'} (${data.outletId.trim()})` : ''
-    setActivity(step === 0 ? 'Starting a survey' : `Surveying ${where}, step ${step + 1} of 4`, step === 1)
+    setActivity(step === 0 ? 'Starting a survey' : `Surveying ${where}, step ${step + 1} of ${STEP_COUNT}`, step === 1)
   }, [step])
 
   // In-app dialog, since some browsers and embedded views block window.confirm
@@ -204,7 +206,7 @@ export default function Survey() {
             <span className="text-paper/30"> · </span>
             {startLoc === 'ok' ? <span className="text-gold">Location ±{startFix.accuracy} m</span> : startLoc === 'finding' ? 'Getting location…' : 'No location'}
           </p>
-          <div className="grid grid-cols-4 gap-1.5 mt-1">
+          <div className="grid gap-1.5 mt-1" style={{ gridTemplateColumns: `repeat(${STEPS.length}, minmax(0, 1fr))` }}>
             {STEPS.map((_, i) => (
               <button
                 key={i}

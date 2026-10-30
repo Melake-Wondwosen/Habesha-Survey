@@ -17,6 +17,17 @@ export const BRANDS = [
 
 // Step 4. The exact strings land in the `reason` column, so edit with care
 // once fieldwork has started. Keep "Other" last.
+// Step 4: Habesha visibility. `key` becomes the sheet column: posmABSPoster, ...
+export const VISIBILITY_ITEMS = [
+  { key: 'ABSPoster', label: 'ABS poster' },
+  { key: 'PaperPoster', label: 'Paper poster' },
+  { key: 'BottleCutout', label: 'Bottle cutout' },
+  { key: 'Banner', label: 'Banner' },
+  { key: 'TableCloth', label: 'Table cloth' },
+  { key: 'LEDLight', label: 'LED light' },
+  { key: 'Fridge', label: 'Fridge' },
+]
+
 export const REASON_QUESTION = 'Main reason the top brand sells most here'
 export const REASONS = [
   'Price',

@@ -104,7 +104,7 @@ export default function Home() {
                 <span className="flex flex-col items-center leading-tight py-1">
                   <span>Continue survey</span>
                   <span className="text-sm font-normal opacity-75 mt-0.5">
-                    {draft.data?.outletId ? `${draft.data.outletName || 'Outlet'} (${draft.data.outletId}) · ` : ''}Step {(draft.step ?? 0) + 1} of 4
+                    {draft.data?.outletId ? `${draft.data.outletName || 'Outlet'} (${draft.data.outletId}) · ` : ''}Step {(draft.step ?? 0) + 1} of 5
                   </span>
                 </span>
               </Button>

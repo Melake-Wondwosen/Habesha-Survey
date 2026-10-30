@@ -52,6 +52,8 @@ var NOTICES_SHEET = 'Notifications';
 // Master outlet data. The BA types only the ID; everything else comes from here.
 var NATIONAL_SHEET = 'National Outlet';
 var SURVEY_BRANDS = ['BGI', 'Heineken', 'Dashen', 'Habesha', 'Anbesa', 'Kegna'];
+// Habesha visibility pieces. Each becomes a column: posmABSPoster, posmPaperPoster, ...
+var POSM_ITEMS = ['ABSPoster', 'PaperPoster', 'BottleCutout', 'Banner', 'TableCloth', 'LEDLight', 'Fridge'];
 var ROLES = ['ba', 'manager', 'admin'];
 // A survey further than this from its outlet's coordinates raises an alert
 var OUTLET_RANGE_M = 100;
@@ -60,6 +62,8 @@ var SURVEY_HEADERS = ['id', 'date', 'baId', 'baName', 'outletId', 'outletName', 
   .concat(SURVEY_BRANDS.map(function (b) { return 'rank' + b; }))
   .concat(['otherBrandName'])
   .concat(SURVEY_BRANDS.map(function (b) { return 'crates' + b; }))
+  .concat(['posm'])
+  .concat(POSM_ITEMS.map(function (k) { return 'posm' + k; }))
   .concat(['reason', 'reasonOther', 'lat', 'lng', 'accuracy', 'distanceM', 'startedAt', 'startLat', 'startLng', 'startAccuracy']);
 
 var SHEET_HEADERS = {
@@ -77,7 +81,7 @@ var SHEET_HEADERS = {
 var TEXT_COLS = ['id', 'username', 'password', 'name', 'active', 'key', 'date', 'baId', 'baName', 'outletId', 'outletName', 'otherBrandName', 'reason',
   'reasonOther', 'lastSeen', 'locTime', 'activity', 'device', 'detail', 'type', 'state', 'role', 'status',
   'requestedBy', 'requestedByName', 'createdAt', 'updatedAt', 'resolvedBy', 'resolvedAt',
-  'fromId', 'fromName', 'target', 'kind', 'title', 'body', 'division', 'agent', 'parentTerritory', 'territory', 'startedAt'];
+  'fromId', 'fromName', 'target', 'kind', 'title', 'body', 'division', 'agent', 'parentTerritory', 'territory', 'startedAt', 'posm'];
 
 function surveyJson_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
@@ -591,6 +595,12 @@ function surveyAddSurvey_(body) {
   if (outlet && coord_(outlet.lat, 90) !== '' && coord_(outlet.lng, 180) !== '' && row.lat !== '' && row.lng !== '') {
     row.distanceM = Math.round(distanceM_(row.lat, row.lng, Number(outlet.lat), Number(outlet.lng)));
   }
+  // posm: Yes / No. Each piece: 1 seen, 0 not seen, blank when not asked
+  var posmItems = s.posmItems || [];
+  row.posm = s.hasPosm === true ? 'Yes' : s.hasPosm === false ? 'No' : '';
+  POSM_ITEMS.forEach(function (k) {
+    row['posm' + k] = row.posm === '' ? '' : (s.hasPosm === true && posmItems.indexOf(k) > -1 ? 1 : 0);
+  });
   SURVEY_BRANDS.forEach(function (b) {
     row['rank' + b] = ranks[b] == null ? '' : Number(ranks[b]);     // blank = not sold, never 0
     row['crates' + b] = crates[b] == null ? '' : Number(crates[b]); // blank = unknown, never 0
