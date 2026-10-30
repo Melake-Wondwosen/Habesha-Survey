@@ -1,6 +1,6 @@
 // Apps Script web app URL (the survey app's own backend, see apps-script/Survey.gs).
 // Paste the URL ending in /exec from Deploy > New deployment > Web app.
-export const API_URL = 'https://script.google.com/macros/s/PASTE_YOUR_DEPLOYMENT_ID/exec'
+export const API_URL = 'https://script.google.com/macros/s/AKfycbzOH6x8uhYrmM3jfoTxUnltLzPEIPro-02D-18Bj02KLC_IRyYZm3ne9lZJk10lZypcUg/exec'
 
 // Demo builds (vite --mode demo) never call the server.
 export const DEMO = import.meta.env.MODE === 'demo'
