@@ -8,9 +8,6 @@ import SignInForm from '../components/SignInForm'
 export default function Login() {
   const navigate = useNavigate()
   const current = getUser()
-  const hour = new Date().getHours()
-  // Night look from 6 pm to 6 am
-  const night = hour >= 18 || hour < 6
   // The logo watches you type, then looks puzzled once you stop
   const [face, setFace] = useState({ mood: 'idle', field: null, progress: 0 })
   const idle = useRef(null)
@@ -30,17 +27,27 @@ export default function Login() {
   if (current?.token) return <Navigate to={homeFor(current)} replace />
 
   return (
-    <main className={`min-h-full flex flex-col safe-top safe-bottom relative overflow-hidden ${night ? 'login-night bg-ink text-paper' : ''}`}>
+    <main className="login-glass min-h-full flex flex-col safe-top safe-bottom relative overflow-hidden bg-ink text-paper">
+      {/* Backdrop: drifting gold glows, a soft vignette and fine grain */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <span className="glow glow-a" />
+        <span className="glow glow-b" />
+        <span className="glow glow-c" />
+        <span className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(0,0,0,0.75)_100%)]" />
+        <span className="grain absolute inset-0" />
+      </div>
+
       <div className="relative flex-1 flex flex-col justify-center px-6 py-8 max-w-md w-full mx-auto stagger">
         <div className="relative mx-auto" style={{ '--i': 0 }}>
-          {night && <span aria-hidden="true" className="absolute inset-0 -m-10 rounded-full bg-gold/45 blur-3xl" />}
-          <WatchingLogo className="relative w-36" glow={night} mood={face.mood} field={face.field} progress={face.progress} />
+          <span aria-hidden="true" className="absolute inset-0 -m-10 rounded-full bg-gold/35 blur-3xl" />
+          <WatchingLogo className="relative w-32" glow mood={face.mood} field={face.field} progress={face.progress} />
         </div>
-        <MovingPattern className="mt-6 -mx-6" style={{ '--i': 1 }} />
+        <MovingPattern className="mt-5 -mx-6" style={{ '--i': 1 }} />
         <div style={{ '--i': 2 }} className="text-center mt-6">
-          <h1 className="font-serif text-2xl">Outlet Survey</h1>
+          <h1 className="text-[30px] leading-tight font-bold tracking-tight">Outlet Survey</h1>
+          <p className="text-paper/60 mt-1.5 text-[15px]">Sign in to start your outlet visits</p>
         </div>
-        <div className={`mt-8 ${night ? 'rounded-3xl bg-paper text-ink p-6 shadow-2xl' : ''}`} style={{ '--i': 3 }}>
+        <div className="mt-7" style={{ '--i': 3 }}>
           <SignInForm onWatch={watch} onStatus={status} onDone={(u) => navigate(homeFor(u), { replace: true })} />
         </div>
       </div>

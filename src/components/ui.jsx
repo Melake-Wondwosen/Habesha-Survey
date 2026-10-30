@@ -75,7 +75,7 @@ export function WatchingLogo({ mood = 'idle', field = null, progress = 0, glow =
           ?
         </span>
       </div>
-      <img src={logoWord} alt="" aria-hidden="true" className={`block w-full -mt-px ${glow ? 'logo-night' : ''}`} draggable="false" />
+      <img src={logoWord} alt="" aria-hidden="true" className={`block w-full -mt-px ${glow ? 'logo-word-night' : ''}`} draggable="false" />
     </div>
   )
 }
