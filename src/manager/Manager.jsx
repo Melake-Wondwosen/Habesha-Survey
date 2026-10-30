@@ -258,7 +258,7 @@ function MarketShare({ share }) {
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-serif text-xl">Market share</h2>
         <p className="text-xs text-ink/55">
-          {share.outlets} outlets · {share.totalCrates.toLocaleString()} crates
+          {share.outlets} outlets · {share.totalCrates.toLocaleString()} crates a week
         </p>
       </div>
 

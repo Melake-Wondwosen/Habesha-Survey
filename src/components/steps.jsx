@@ -246,7 +246,7 @@ export function StepRank({ data, set }) {
   )
 }
 
-// Step 3: crates per brand. Blank means unknown, not zero.
+// Step 3: weekly crates per brand. Blank means unknown, not zero.
 export function StepCrates({ data, set }) {
   function put(key, value) {
     set({ crates: { ...data.crates, [key]: value } })
@@ -263,8 +263,8 @@ export function StepCrates({ data, set }) {
 
   return (
     <>
-      <Title n={3}>
-        Crate volume
+      <Title n={3} sub="How many crates of each brand does this outlet sell in a week?">
+        Weekly crate volume
       </Title>
       <div className="space-y-2.5 stagger">
         {data.order.map((key, i) => {
