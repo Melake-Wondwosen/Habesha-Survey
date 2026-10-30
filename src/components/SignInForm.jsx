@@ -11,6 +11,8 @@ export default function SignInForm({ need, onDone, submitLabel = 'Sign in' }) {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
+  const [showPw, setShowPw] = useState(false)
+  const [shake, setShake] = useState(0)
 
   async function submit(e) {
     e.preventDefault()
@@ -51,13 +53,16 @@ export default function SignInForm({ need, onDone, submitLabel = 'Sign in' }) {
       setUser(user)
       onDone(user)
     } catch (err) {
-      setError(/location is required/i.test(err.message) ? locationMessage(fixError) : err.message)
+      const isLocation = /location is required/i.test(err.message)
+      setError(isLocation ? locationMessage(fixError) : err.message)
+      // A wrong username or password shakes the form
+      if (/wrong username or password/i.test(err.message)) setShake((n) => n + 1)
       setBusy('')
     }
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form key={shake} onSubmit={submit} className={`space-y-4 ${shake ? 'anim-shake' : ''}`}>
       <Field label="Username">
         <input
           className={inputClass}
@@ -71,7 +76,32 @@ export default function SignInForm({ need, onDone, submitLabel = 'Sign in' }) {
         />
       </Field>
       <Field label="Password">
-        <input className={inputClass} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
+        <div className="relative">
+          <input
+            className={`${inputClass} pr-14`}
+            type={showPw ? 'text' : 'password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck="false"
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setShowPw((v) => !v)}
+            aria-label={showPw ? 'Hide password' : 'Show password'}
+            aria-pressed={showPw}
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 w-11 h-11 rounded-xl flex items-center justify-center text-ink/50 hover:text-ink"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+              <circle cx="12" cy="12" r="3" />
+              {showPw && <path d="M4 4l16 16" />}
+            </svg>
+          </button>
+        </div>
       </Field>
 
       {error && <Notice>{error}</Notice>}

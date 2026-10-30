@@ -186,6 +186,32 @@ input[type="number"]::-webkit-outer-spin-button {
   60%, 100% { transform: translateX(420%); }
 }
 
+/* Sign-in screen extras */
+.fleck {
+  position: absolute;
+  bottom: -12px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, #f3dc93 0%, #c9a24a 60%, transparent 100%);
+  opacity: 0;
+  animation: fleck-rise linear infinite;
+}
+@keyframes fleck-rise {
+  0% { transform: translate(0, 0); opacity: 0; }
+  12% { opacity: var(--alpha); }
+  50% { transform: translate(var(--sway), -55vh); }
+  88% { opacity: var(--alpha); }
+  100% { transform: translate(0, -110vh); opacity: 0; }
+}
+.anim-shake { animation: shake 0.45s cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes shake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-8px); }
+  40%, 60% { transform: translateX(8px); }
+}
+.logo-night { filter: drop-shadow(0 0 18px rgba(243, 220, 147, 0.35)); }
+.login-night .pt-glint { opacity: 0.3; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
