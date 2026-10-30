@@ -66,7 +66,6 @@ export function WatchingLogo({ mood = 'idle', field = null, progress = 0, glow =
                 <path d={almond(cx)} fill="none" stroke="#1b120b" strokeWidth="3.4" strokeLinejoin="round" />
               </g>
             ))}
-            </g>
           </svg>
         </div>
         <span
