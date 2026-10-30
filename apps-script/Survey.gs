@@ -567,7 +567,8 @@ function surveySaveUser_(body) {
     put(t.c.user, username);
     put(t.c.id, id);
     put(t.c.name, name);
-    put(t.c.role, role === 'ba' ? 'BA' : role);
+    // Leave the role cell exactly as typed unless the admin changed the role. BA is written blank.
+    if (!editing || editing.role !== role) put(t.c.role, role === 'ba' ? '' : role);
     put(t.c.active, active ? 'yes' : 'no');
     if (password) put(t.c.pass, password);
     result = { ok: true, id: id };
