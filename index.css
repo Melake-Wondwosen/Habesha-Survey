@@ -1,0 +1,168 @@
+@import "tailwindcss";
+
+@theme {
+  /* The app has three colours: white, gold and black */
+  --color-ink: #000000;
+  --color-ink-soft: #262626;
+  --color-paper: #ffffff;
+  --color-mist: #f3f3f3;
+  --color-gold: #c9a24a;
+  --color-gold-dark: #8f6b1e;
+  --font-serif: Cambria, Georgia, "Times New Roman", serif;
+  --font-sans: Calibri, "Segoe UI", Roboto, system-ui, sans-serif;
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Keep iOS from zooming into inputs */
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
+button {
+  cursor: pointer;
+  transition: transform 0.18s var(--ease-soft), background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease, opacity 0.25s ease, box-shadow 0.25s ease;
+}
+
+.gold-gradient {
+  background: linear-gradient(120deg, #d9be6c 0%, #c9a24a 45%, #b08636 100%);
+}
+
+.safe-top {
+  padding-top: max(env(safe-area-inset-top), 0px);
+}
+
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 12px);
+}
+
+/* Tailwind's image reset breaks Leaflet map tiles */
+.leaflet-container img {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ---------- motion ---------- */
+/* One easing curve everywhere so the app feels like one piece. */
+
+/* Only `from` frames, so the end state is the element's own opacity and transform. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+}
+@keyframes fade {
+  from { opacity: 0; }
+}
+@keyframes slide-r {
+  from { opacity: 0; transform: translateX(36px); }
+}
+@keyframes slide-l {
+  from { opacity: 0; transform: translateX(-36px); }
+}
+@keyframes pop {
+  0% { opacity: 0; transform: scale(0.4); }
+  60% { opacity: 1; transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+@keyframes ring {
+  0%, 100% { transform: rotate(0); }
+  12% { transform: rotate(16deg); }
+  26% { transform: rotate(-13deg); }
+  40% { transform: rotate(9deg); }
+  54% { transform: rotate(-6deg); }
+  68% { transform: rotate(3deg); }
+}
+@keyframes panel {
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+}
+@keyframes sheet {
+  from { transform: translateY(100%); }
+}
+@keyframes draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+
+.anim-page { animation: rise 0.55s var(--ease-soft) backwards; }
+.anim-fade { animation: fade 0.35s ease backwards; }
+.anim-rise { animation: rise 0.5s var(--ease-soft) backwards; }
+.anim-slide-r { animation: slide-r 0.45s var(--ease-soft) backwards; }
+.anim-slide-l { animation: slide-l 0.45s var(--ease-soft) backwards; }
+.anim-pop { animation: pop 0.45s var(--ease-soft) both; }
+.anim-ring { animation: ring 1s ease-in-out; transform-origin: 50% 8%; }
+.anim-panel { animation: panel 0.28s var(--ease-soft) backwards; transform-origin: top right; }
+.anim-sheet { animation: sheet 0.42s var(--ease-soft) backwards; }
+.anim-draw { stroke-dasharray: 60; stroke-dashoffset: 60; animation: draw 0.5s 0.25s var(--ease-soft) forwards; }
+
+/* Children rise one after another. Set --i on each child. */
+.stagger > * {
+  animation: rise 0.5s var(--ease-soft) backwards;
+  animation-delay: calc(min(var(--i, 0), 12) * 45ms);
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f1f1f1 25%, #fafafa 50%, #f1f1f1 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+/* ---------- hover ---------- */
+/* Only on devices with a real pointer, so taps on phones never leave a stuck hover state. */
+@media (hover: hover) and (pointer: fine) {
+  .lift { transition: transform 0.3s var(--ease-soft), box-shadow 0.3s var(--ease-soft), border-color 0.3s ease; }
+  .lift:hover { transform: translateY(-3px); box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.28); border-color: var(--color-gold); }
+
+  .btn-hover:not(:disabled):hover { translate: 0 -2px; box-shadow: 0 10px 22px -10px rgba(0, 0, 0, 0.45); }
+
+  .row-hover { position: relative; transition: background-color 0.25s ease, padding-left 0.3s var(--ease-soft); }
+  .row-hover::before {
+    content: ""; position: absolute; left: 0; top: 18%; bottom: 18%; width: 3px; border-radius: 3px;
+    background: var(--color-gold); transform: scaleY(0); transition: transform 0.3s var(--ease-soft);
+  }
+  .row-hover:hover { background: rgba(201, 162, 74, 0.08); }
+  .row-hover:hover::before { transform: scaleY(1); }
+
+  .bell:hover svg { animation: ring 0.9s ease-in-out; transform-origin: 50% 8%; }
+
+  .link-hover { background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat; transition: background-size 0.35s var(--ease-soft); text-decoration: none !important; }
+  .link-hover:hover { background-size: 100% 1px; }
+
+  .pick:hover { border-color: var(--color-gold); transform: translateX(4px); }
+  .pick { transition: transform 0.3s var(--ease-soft), border-color 0.25s ease, background-color 0.25s ease; }
+}
+
+@media (min-width: 768px) {
+  .anim-sheet { animation: rise 0.4s var(--ease-soft) backwards; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.01ms !important;
+  }
+}
