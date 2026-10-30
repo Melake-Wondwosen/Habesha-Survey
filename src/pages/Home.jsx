@@ -5,9 +5,9 @@ import { locationMessage, onLocation } from '../location'
 import { addLocalNote, clearNotesMemory, setServerNotes } from '../notes'
 import { syncOutlets } from '../outlets'
 import { setActivity, stopPresence } from '../presence'
-import { clearUser, getDoneCounts, getLastSync, getQueue, getQueueWhy, getUser, setLastSync } from '../storage'
+import { clearDraft, clearUser, getDoneCounts, getDraft, getLastSync, getQueue, getQueueWhy, getUser, setLastSync } from '../storage'
 import Bell from '../components/Bell'
-import { Button, Emblem, Notice, Pattern, SignOutButton } from '../components/ui'
+import { Button, Emblem, Notice, Pattern, Sheet, SignOutButton } from '../components/ui'
 
 const clock = (ms) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
@@ -15,6 +15,8 @@ export default function Home() {
   const navigate = useNavigate()
   const user = getUser()
   const [counts] = useState(getDoneCounts)
+  const [draft, setDraftState] = useState(getDraft)
+  const [confirmNew, setConfirmNew] = useState(false)
   const [pending, setPending] = useState(() => getQueue().length)
   const [why, setWhy] = useState(getQueueWhy)
   const [lastSync, setLast] = useState(getLastSync)
@@ -94,10 +96,50 @@ export default function Home() {
         )}
 
         <div style={{ '--i': 2 }}>
-          <Button variant="gold" className="mt-6 min-h-[64px] text-lg" onClick={() => navigate('/survey')}>
-            Start a survey
-          </Button>
+          {draft ? (
+            <>
+              <Button variant="gold" className="mt-6 min-h-[64px] text-lg" onClick={() => navigate('/survey')}>
+                <span className="flex flex-col items-center leading-tight py-1">
+                  <span>Continue survey</span>
+                  <span className="text-sm font-normal opacity-75 mt-0.5">
+                    {draft.data?.outletId ? `${draft.data.outletName || 'Outlet'} (${draft.data.outletId}) · ` : ''}Step {(draft.step ?? 0) + 1} of 4
+                  </span>
+                </span>
+              </Button>
+              <Button variant="quiet" className="mt-2" onClick={() => setConfirmNew(true)}>
+                Start a new survey instead
+              </Button>
+            </>
+          ) : (
+            <Button variant="gold" className="mt-6 min-h-[64px] text-lg" onClick={() => navigate('/survey')}>
+              Start a survey
+            </Button>
+          )}
         </div>
+        {confirmNew && (
+          <Sheet
+            title="Start a new survey?"
+            onClose={() => setConfirmNew(false)}
+            footer={
+              <div className="grid grid-cols-2 gap-3">
+                <Button variant="ghost" onClick={() => setConfirmNew(false)}>
+                  Keep it
+                </Button>
+                <Button
+                  onClick={() => {
+                    clearDraft()
+                    setDraftState(null)
+                    navigate('/survey')
+                  }}
+                >
+                  Start new
+                </Button>
+              </div>
+            }
+          >
+            <p className="text-sm text-ink/70">The survey you started will be deleted.</p>
+          </Sheet>
+        )}
 
         <section style={{ '--i': 3 }} className={`lift mt-4 rounded-2xl bg-white border p-3 pl-4 flex items-center gap-3 ${pending ? 'border-gold' : 'border-ink/10'}`}>
           <span className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${pending ? 'gold-gradient text-ink' : 'bg-mist text-ink'}`}>

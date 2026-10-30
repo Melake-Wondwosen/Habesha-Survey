@@ -4,7 +4,7 @@ import { addSurvey } from '../api'
 import { getFix, latestFix, locationError, locationMessage } from '../location'
 import { setActivity } from '../presence'
 import { RETURN_HOME_MS } from '../config'
-import { countDone, getUser, pushQueue, setQueueWhy } from '../storage'
+import { clearDraft, countDone, getDraft, getUser, pushQueue, setDraft, setQueueWhy } from '../storage'
 import { Button, Sheet, Spinner } from '../components/ui'
 import { StepCrates, StepOutlet, StepRank, StepReason, stepReady } from '../components/steps'
 
@@ -52,9 +52,12 @@ function buildRecord(d, user, location, start) {
 
 export default function Survey() {
   const navigate = useNavigate()
-  const [step, setStep] = useState(0)
+  // Pick up a survey that was left part-way
+  const [draft] = useState(getDraft)
+  const [step, setStep] = useState(draft?.step ?? 0)
+  const [maxStep, setMaxStep] = useState(draft?.maxStep ?? draft?.step ?? 0)
   const [dir, setDir] = useState(1)
-  const [data, setData] = useState(EMPTY)
+  const [data, setData] = useState(() => (draft ? { ...EMPTY, ...draft.data } : EMPTY))
   const [status, setStatus] = useState('idle') // idle | sending | saved | queued
   const scroller = useRef(null)
 
@@ -66,10 +69,12 @@ export default function Survey() {
   const [error, setError] = useState('')
 
   // Start time and location are taken the moment the survey opens
-  const start = useRef({ at: new Date().toISOString(), fix: null })
-  const [startFix, setStartFix] = useState(null)
-  const [startLoc, setStartLoc] = useState('finding') // finding | ok | off
+  // A resumed survey keeps its original start time and location.
+  const start = useRef(draft?.start || { at: new Date().toISOString(), fix: null })
+  const [startFix, setStartFix] = useState(start.current.fix)
+  const [startLoc, setStartLoc] = useState(start.current.fix ? 'ok' : 'finding') // finding | ok | off
   useEffect(() => {
+    if (start.current.fix) return
     let live = true
     getFix()
       .then((f) => {
@@ -96,6 +101,14 @@ export default function Survey() {
   }, [])
   const startTime = new Date(start.current.at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
+  // Save progress after every change
+  const touched = step > 0 || JSON.stringify(data) !== JSON.stringify(EMPTY)
+  const finished = useRef(false)
+  useEffect(() => {
+    if (finished.current || !touched) return
+    setDraft({ baId: getUser()?.id, data, step, maxStep, start: start.current, savedAt: Date.now() })
+  }, [data, step, maxStep, startFix])
+
   useEffect(() => {
     scroller.current?.scrollTo(0, 0)
     const where = data.outletId.trim() ? `${data.outletName.trim() || 'outlet'} (${data.outletId.trim()})` : ''
@@ -103,17 +116,25 @@ export default function Survey() {
   }, [step])
 
   // In-app dialog, since some browsers and embedded views block window.confirm
-  const [discarding, setDiscarding] = useState(false)
+  const [leaving, setLeaving] = useState(false)
   function abandon() {
-    const touched = JSON.stringify(data) !== JSON.stringify(EMPTY)
-    if (touched) setDiscarding(true)
+    if (touched) setLeaving(true)
     else navigate('/', { replace: true })
+  }
+  function discard() {
+    finished.current = true
+    clearDraft()
+    navigate('/', { replace: true })
   }
 
   function go(to) {
     setDir(to > step ? 1 : -1)
     setStep(to)
+    setMaxStep((m) => Math.max(m, to))
   }
+  // A step can be opened from the progress bar once it was reached and every
+  // step before it is still answered
+  const canJump = (i) => i !== step && i <= maxStep && STEPS.slice(0, i).every((_, j) => stepReady[j](data))
 
   function skipCrates() {
     set({ crates: {} })
@@ -138,6 +159,7 @@ export default function Survey() {
       fix = latestFix()
     }
     const record = buildRecord(data, getUser(), fix, start.current)
+    finished.current = true
     setActivity(`Submitted survey at ${record.outletName || 'outlet'} (${record.outletId})`, true)
     try {
       if (!navigator.onLine) throw new Error('No connection. Could not reach the server.')
@@ -148,6 +170,7 @@ export default function Survey() {
       setQueueWhy(err.message)
       setStatus('queued')
     }
+    clearDraft()
     countDone()
     setTimeout(() => navigate('/', { replace: true }), RETURN_HOME_MS)
   }
@@ -190,9 +213,18 @@ export default function Survey() {
           </p>
           <div className="grid grid-cols-4 gap-1.5 mt-1">
             {STEPS.map((_, i) => (
-              <span key={i} className="h-1.5 rounded-full bg-paper/20 overflow-hidden">
-                <span className="block h-full rounded-full bg-gold transition-[width] duration-500 ease-[cubic-bezier(.22,1,.36,1)]" style={{ width: i <= step ? '100%' : '0%' }} />
-              </span>
+              <button
+                key={i}
+                type="button"
+                onClick={() => canJump(i) && go(i)}
+                disabled={!canJump(i) || status === 'sending'}
+                aria-label={`Go to step ${i + 1}`}
+                className="py-2 -my-2 disabled:cursor-default"
+              >
+                <span className="block h-1.5 rounded-full bg-paper/20 overflow-hidden">
+                  <span className={`block h-full rounded-full transition-[width] duration-500 ease-[cubic-bezier(.22,1,.36,1)] ${i <= step ? 'bg-gold' : i <= maxStep ? 'bg-gold/40' : ''}`} style={{ width: i <= maxStep ? '100%' : '0%' }} />
+                </span>
+              </button>
             ))}
           </div>
         </div>
@@ -232,19 +264,26 @@ export default function Survey() {
           )}
         </div>
       </footer>
-      {discarding && (
+      {leaving && (
         <Sheet
-          title="Discard survey?"
-          onClose={() => setDiscarding(false)}
+          title="Leave this survey?"
+          onClose={() => setLeaving(false)}
           footer={
-            <div className="grid grid-cols-2 gap-3">
-              <Button variant="ghost" onClick={() => setDiscarding(false)}>
-                Keep
+            <div className="space-y-2">
+              <Button variant="gold" onClick={() => navigate('/', { replace: true })}>
+                Save and continue later
               </Button>
-              <Button onClick={() => navigate('/', { replace: true })}>Discard</Button>
+              <div className="grid grid-cols-2 gap-3">
+                <Button variant="ghost" onClick={() => setLeaving(false)}>
+                  Stay
+                </Button>
+                <Button onClick={discard}>Discard</Button>
+              </div>
             </div>
           }
-        />
+        >
+          <p className="text-sm text-ink/70">Your answers are saved on the phone. You can carry on from the home screen.</p>
+        </Sheet>
       )}
     </main>
   )

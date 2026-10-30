@@ -5,6 +5,7 @@ const QUEUE_KEY = 'offline_surveys'
 const WHY_KEY = 'offline_surveys_why'
 const DONE_KEY = 'surveys_done'
 const SYNC_KEY = 'last_sync'
+const DRAFT_KEY = 'survey_draft'
 
 // In-memory copy so the app still works where storage is blocked (private
 // browsing, sandboxed previews). It just won't survive a reload there.
@@ -75,3 +76,13 @@ export function getDoneCounts() {
   const total = Object.values(done).reduce((a, b) => a + (Number(b) || 0), 0)
   return { today: done[todayKey()] || 0, total }
 }
+
+// The survey in progress. Saved after every answer, so closing the app or
+// losing the page doesn't lose the work. Only the BA who started it sees it.
+export function getDraft() {
+  const d = read(DRAFT_KEY, null)
+  const u = getUser()
+  return d && u && d.baId === u.id ? d : null
+}
+export const setDraft = (draft) => write(DRAFT_KEY, draft)
+export const clearDraft = () => remove(DRAFT_KEY)
