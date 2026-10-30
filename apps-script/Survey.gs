@@ -3,7 +3,8 @@
  * Apps Script project, separate from the wheel app.
  *
  * Setup:
- * 1. Create a new Google Sheet. Extensions > Apps Script.
+ * 1. Open the Habesha Survey sheet. Extensions > Apps Script (or any Apps
+ *    Script project: the sheet is opened by SURVEY_SPREADSHEET_ID below).
  * 2. Replace Code.gs with this file. Save.
  * 3. Pick surveySetup in the function list and Run. Approve the permissions.
  *    It creates every tab and an admin account. The admin password is in the
@@ -29,6 +30,15 @@ function doPost(e) {
 // Opening the /exec URL in a browser shows this, so you can check the deployment is live.
 function doGet() {
   return surveyJson_({ ok: true, app: 'Habesha Outlet Survey', time: now_() });
+}
+
+// The "Habesha Survey" spreadsheet. The script opens it by ID, so it works
+// whichever sheet the Apps Script project was created from.
+var SURVEY_SPREADSHEET_ID = '1tf0oQTnZG7a0zxZcYFzYXpeDf5Y57e_1fyvHLEdxcOk';
+var ss_cache_ = null;
+function ss_() {
+  if (!ss_cache_) ss_cache_ = SpreadsheetApp.openById(SURVEY_SPREADSHEET_ID);
+  return ss_cache_;
 }
 
 var SURVEY_SHEET = 'Surveys';
@@ -140,7 +150,7 @@ function requireUser_(token, roles) {
 /* ---------- users ---------- */
 
 function usersTable_() {
-  var sheet = SpreadsheetApp.getActive().getSheetByName(USERS_SHEET);
+  var sheet = ss_().getSheetByName(USERS_SHEET);
   if (!sheet) throw new Error('Users tab not found.');
   var values = sheet.getDataRange().getValues();
   var head = values[0].map(function (h) { return String(h).trim().toLowerCase().replace(/[\s_]/g, ''); });
@@ -343,7 +353,7 @@ function nationalLookup_(id) {
   var hit = cache.get('nat_' + id);
   if (hit) return hit === '-' ? null : JSON.parse(hit);
 
-  var sheet = SpreadsheetApp.getActive().getSheetByName(NATIONAL_SHEET);
+  var sheet = ss_().getSheetByName(NATIONAL_SHEET);
   if (!sheet || sheet.getLastRow() < 2) return null;
   var head = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
     .map(function (h) { return String(h).trim().toLowerCase().replace(/[\s_]/g, ''); });
@@ -369,7 +379,7 @@ function nationalLookup_(id) {
 }
 
 function nationalExists_() {
-  var sheet = SpreadsheetApp.getActive().getSheetByName(NATIONAL_SHEET);
+  var sheet = ss_().getSheetByName(NATIONAL_SHEET);
   return !!sheet && sheet.getLastRow() > 1;
 }
 
@@ -664,7 +674,7 @@ function surveySendNotice_(body) {
 
 // Reads a tab as objects keyed by header. tail > 0 reads only the last N rows.
 function readRows_(name, tail) {
-  var sheet = SpreadsheetApp.getActive().getSheetByName(name);
+  var sheet = ss_().getSheetByName(name);
   if (!sheet || sheet.getLastRow() < 2) return [];
   var headers = headers_(sheet);
   var last = sheet.getLastRow();
@@ -678,7 +688,7 @@ function readRows_(name, tail) {
 }
 
 function sheet_(name) {
-  var ss = SpreadsheetApp.getActive();
+  var ss = ss_();
   var sheet = ss.getSheetByName(name) || ss.insertSheet(name);
   var want = SHEET_HEADERS[name];
   if (sheet.getLastRow() === 0) {
