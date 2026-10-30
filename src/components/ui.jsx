@@ -2,6 +2,8 @@ import { useEffect } from 'react'
 import logo from '../assets/logo.png'
 import pattern from '../assets/pattern.png'
 import face from '../assets/face.png'
+import logoFace from '../assets/logo-face.png'
+import logoWord from '../assets/logo-word.png'
 
 export function Emblem({ className = '' }) {
   return <img src={face} alt="Habesha" className={className} draggable="false" />
@@ -9,6 +11,25 @@ export function Emblem({ className = '' }) {
 
 export function Logo({ className = '', ...rest }) {
   return <img src={logo} alt="Habesha" className={className} draggable="false" {...rest} />
+}
+
+// Sign-in logo: the face spins a full turn, winks her right eye, and settles
+// back where she started. The wordmark under her stays still.
+// Eyelid position is in % of logo-face.png (222 x 220): right eye x 126-158, y 126-138.
+export function AnimatedLogo({ className = '', glow = false, ...rest }) {
+  return (
+    <div className={`flex flex-col items-center ${className}`} {...rest}>
+      <div className="logo-spin relative w-[69%]">
+        <img src={logoFace} alt="Habesha" className={`block w-full ${glow ? 'logo-night' : ''}`} draggable="false" />
+        <span
+          aria-hidden="true"
+          className="logo-wink absolute rounded-[50%]"
+          style={{ left: '55.4%', width: '17%', top: '54.5%', height: '9.5%', background: 'rgb(131, 81, 39)' }}
+        />
+      </div>
+      <img src={logoWord} alt="" aria-hidden="true" className={`block w-full -mt-px ${glow ? 'logo-night' : ''}`} draggable="false" />
+    </div>
+  )
 }
 
 export function Pattern({ className = '', ...rest }) {

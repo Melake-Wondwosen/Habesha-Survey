@@ -1,7 +1,7 @@
 import { Navigate, useNavigate } from 'react-router'
 import { getUser } from '../storage'
 import { homeFor } from '../roles'
-import { Logo, MovingPattern } from '../components/ui'
+import { AnimatedLogo, MovingPattern } from '../components/ui'
 import SignInForm from '../components/SignInForm'
 
 export default function Login() {
@@ -17,7 +17,7 @@ export default function Login() {
       <div className="relative flex-1 flex flex-col justify-center px-6 py-8 max-w-md w-full mx-auto stagger">
         <div className="relative mx-auto" style={{ '--i': 0 }}>
           {night && <span aria-hidden="true" className="absolute inset-0 -m-10 rounded-full bg-gold/45 blur-3xl" />}
-          <Logo className={`relative w-36 ${night ? 'logo-night' : ''}`} />
+          <AnimatedLogo className="relative w-36" glow={night} />
         </div>
         <MovingPattern className="mt-6 -mx-6" style={{ '--i': 1 }} />
         <div style={{ '--i': 2 }} className="text-center mt-6">
