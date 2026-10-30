@@ -16,8 +16,12 @@ export function onLock(fn) {
   return () => listeners.delete(fn)
 }
 
+// The lock is for BAs in the field. Managers and admins work on PCs, where
+// developer tools or browser extensions can trigger it, so they're left alone.
+const exempt = () => ['admin', 'manager'].includes(getUser()?.role)
+
 function trip(detail) {
-  if (locked) return
+  if (locked || exempt()) return
   locked = true
   listeners.forEach((fn) => fn(true))
   const u = getUser()
@@ -33,8 +37,9 @@ function probe() {
 export function startGuard() {
   if (!LOCK_DEVTOOLS) return
 
-  document.addEventListener('contextmenu', (e) => e.preventDefault())
+  document.addEventListener('contextmenu', (e) => !exempt() && e.preventDefault())
   document.addEventListener('keydown', (e) => {
+    if (exempt()) return
     const k = e.key?.toUpperCase()
     const ctrl = e.ctrlKey || e.metaKey
     if (k === 'F12' || (ctrl && e.shiftKey && ['I', 'J', 'C', 'K'].includes(k)) || (ctrl && k === 'U') || (e.metaKey && e.altKey && ['I', 'J', 'C'].includes(k))) {
@@ -45,6 +50,7 @@ export function startGuard() {
 
   // `debugger` only pauses when developer tools are attached. A long pause = attached.
   setInterval(() => {
+    if (exempt()) return
     const t = performance.now()
     probe()
     if (performance.now() - t > 150) trip('Debugger attached')

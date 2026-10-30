@@ -19,18 +19,35 @@ export default function SignInForm({ need, onDone, submitLabel = 'Sign in' }) {
 
     // Location is captured at every sign-in. The server refuses BAs without it;
     // managers and admins on a PC may not have one, so they get through.
+    // Wait at most 6 seconds for it first. PCs often have no quick fix, and
+    // managers and admins don't need one; a BA without one gets a full GPS wait
+    // and a second try.
     setBusy('Getting your location…')
     let fix = null
     let fixError = null
-    try {
-      fix = await getFix()
-    } catch (err) {
-      fixError = err
-    }
+    const getLocation = (ms) =>
+      Promise.race([
+        getFix().catch((err) => {
+          fixError = err
+          return null
+        }),
+        new Promise((r) => setTimeout(() => r(null), ms)),
+      ])
+    fix = await getLocation(6000)
 
     setBusy('Signing in…')
     try {
-      const user = await login(username, password, fix, need)
+      let user
+      try {
+        user = await login(username, password, fix, need)
+      } catch (err) {
+        if (!/location is required/i.test(err.message) || fixError?.code === 1) throw err
+        setBusy('Getting your location…')
+        fix = await getLocation(25000)
+        if (!fix) throw err
+        setBusy('Signing in…')
+        user = await login(username, password, fix, need)
+      }
       setUser(user)
       onDone(user)
     } catch (err) {
