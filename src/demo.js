@@ -1,6 +1,14 @@
 // Made-up data for demo builds only (vite --mode demo). Never shipped to BAs.
 import { BRANDS, REASONS } from './config'
 
+// Made-up divisions and agents for the demo analysis
+const DEMO_GEO = [
+  { division: 'North Addis', agent: 'Demo Agent A plc', parentTerritory: 'Addis Ababa Gullele', territory: 'Addis Ababa Aware' },
+  { division: 'North Addis', agent: 'Demo Agent B plc', parentTerritory: 'Addis Ababa Yeka', territory: 'Addis Ababa Megenagna' },
+  { division: 'South Addis', agent: 'Demo Agent C plc', parentTerritory: 'Addis Ababa Kirkos', territory: 'Addis Ababa Kazanchis' },
+  { division: 'South Addis', agent: 'Demo Agent D plc', parentTerritory: 'Addis Ababa Bole', territory: 'Addis Ababa Bole Medhanialem' },
+]
+
 let seed = 7
 const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
 const pick = (a) => a[Math.floor(rnd() * a.length)]
@@ -20,7 +28,8 @@ function build() {
 
   const outlets = Array.from({ length: 70 }, (_, i) => {
     const b = Math.floor(rnd() * bas.length)
-    return { id: `AA-${String(1000 + i)}`, name: `${pick(PLACES)} ${pick(KINDS)}`, ba: b, lat: home[b].lat + (rnd() - 0.5) * 0.02, lng: home[b].lng + (rnd() - 0.5) * 0.02 }
+    const geo = DEMO_GEO[b % DEMO_GEO.length]
+    return { id: `AA-${String(1000 + i)}`, name: `${pick(PLACES)} ${pick(KINDS)}`, ba: b, lat: home[b].lat + (rnd() - 0.5) * 0.02, lng: home[b].lng + (rnd() - 0.5) * 0.02, ...geo }
   })
 
   const weights = { BGI: 1.2, Heineken: 1.1, Dashen: 1.0, Habesha: 1.0, Anbesa: 0.6, Kegna: 0.5 }
@@ -37,7 +46,7 @@ function build() {
       const known = rnd() < 0.7
       const row = {
         id: `SRV-${Math.round(when)}-${i}${v}`, date: new Date(Math.min(when, now - 60000)).toISOString(), baId: bas[o.ba].id, baName: bas[o.ba].name,
-        outletId: o.id, outletName: o.name, city: '', otherBrandName: '', reason: pick(REASONS.slice(0, 6)), reasonOther: '',
+        outletId: o.id, outletName: o.name, division: o.division, agent: o.agent, parentTerritory: o.parentTerritory, territory: o.territory, city: '', otherBrandName: '', reason: pick(REASONS.slice(0, 6)), reasonOther: '',
         lat: o.lat, lng: o.lng, accuracy: 10 + Math.round(rnd() * 25),
       }
       BRANDS.forEach((b) => {

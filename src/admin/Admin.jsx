@@ -6,8 +6,10 @@ import { clearUser, getUser } from '../storage'
 import Bell from '../components/Bell'
 import { Emblem, Notice, SignOutButton } from '../components/ui'
 import { FlagsTab, MessagesTab, OutletsTab, RequestsTab, UsersTab } from './tabs'
+import Analysis from './Analysis'
 
 const TABS = [
+  { key: 'analysis', label: 'Analysis' },
   { key: 'users', label: 'Users' },
   { key: 'outlets', label: 'Outlets' },
   { key: 'requests', label: 'Requests' },
@@ -18,7 +20,7 @@ const TABS = [
 export default function Admin() {
   const navigate = useNavigate()
   const user = getUser()
-  const [tab, setTab] = useState('users')
+  const [tab, setTab] = useState('analysis')
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [toast, setToast] = useState(null)
@@ -78,7 +80,7 @@ export default function Admin() {
             <SignOutButton onClick={signOut} />
           </div>
 
-          <nav className="relative mt-4 grid grid-cols-5">
+          <nav className="relative mt-4 grid grid-cols-6">
             {TABS.map((t) => (
               <button
                 key={t.key}
@@ -109,6 +111,7 @@ export default function Admin() {
         {!data && !error && <Skeleton />}
         {data && (
           <div key={tab} className="anim-rise">
+            {tab === 'analysis' && <Analysis />}
             {tab === 'users' && <UsersTab {...props} />}
             {tab === 'outlets' && <OutletsTab {...props} />}
             {tab === 'requests' && <RequestsTab {...props} />}
