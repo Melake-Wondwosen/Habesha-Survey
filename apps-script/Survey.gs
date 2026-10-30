@@ -188,7 +188,15 @@ function usersTable_() {
   return { sheet: sheet, c: c, users: users };
 }
 
-function readUsers_() { return usersTable_().users; }
+function readUsers_() {
+  var cache = CacheService.getScriptCache();
+  var hit = cache.get('users_v1');
+  if (hit) return JSON.parse(hit);
+  var users = usersTable_().users;
+  try { cache.put('users_v1', JSON.stringify(users), 60); } catch (e) { /* too big to cache */ }
+  return users;
+}
+function clearUsersCache_() { CacheService.getScriptCache().remove('users_v1'); }
 
 function findUser_(id) {
   var users = readUsers_();
@@ -216,16 +224,16 @@ function surveyLogin_(body) {
   // BAs can't sign in without a GPS fix. Managers and admins on a PC may not have one.
   if (u.role === 'ba' && (loc.lat == null || loc.lng == null)) return { ok: false, message: 'Location is required to sign in.', code: 'location' };
 
-  withLock_(function () {
-    appendByHeader_(sheet_(LOGINS_SHEET), {
-      date: now_(), baId: u.id, baName: u.name, role: u.role,
-      lat: num_(loc.lat), lng: num_(loc.lng), accuracy: num_(loc.accuracy), device: String(body.device || '').slice(0, 200)
-    });
-    if (u.role === 'ba') {
-      upsertPresence_(u, { state: 'online', activity: 'Signed in', location: loc, device: body.device });
-      appendTrack_(u, loc, 'Signed in');
-    }
+  // Log rows are appended in one atomic call, so sign-in never queues behind
+  // other users. Presence is skipped if the sheet is busy; the next heartbeat sets it.
+  appendFast_(sheet_(LOGINS_SHEET), {
+    date: now_(), baId: u.id, baName: u.name, role: u.role,
+    lat: num_(loc.lat), lng: num_(loc.lng), accuracy: num_(loc.accuracy), device: String(body.device || '').slice(0, 200)
   });
+  if (u.role === 'ba') {
+    appendTrack_(u, loc, 'Signed in');
+    tryLock_(3000, function () { upsertPresence_(u, { state: 'online', activity: 'Signed in', location: loc, device: body.device }); });
+  }
 
   return { ok: true, user: { id: u.id, name: u.name, username: u.username, role: u.role, token: makeToken_(u) } };
 }
@@ -237,9 +245,9 @@ function surveyPing_(body) {
   if (!t) return { ok: false, message: 'Session not valid. Sign in again.' };
   var u = { id: t.id, name: String(body.baName || t.id), role: t.role };
   var loc = body.location || {};
-  withLock_(function () {
+  if (loc.lat != null && loc.lng != null) appendTrack_(u, loc, body.activity);
+  tryLock_(3000, function () {
     upsertPresence_(u, { state: body.state === 'offline' ? 'offline' : 'online', activity: body.activity, location: loc, device: body.device });
-    if (loc.lat != null && loc.lng != null) appendTrack_(u, loc, body.activity);
   });
   if (body.state === 'offline') return { ok: true };
   // Piggy-back the bell and the outlet list version so the phone needs no extra calls
@@ -249,12 +257,10 @@ function surveyPing_(body) {
 function surveyFlag_(body) {
   var t = readToken_(body.token);
   if (!t) return { ok: false, message: 'Session not valid.' };
-  withLock_(function () {
-    appendByHeader_(sheet_(FLAGS_SHEET), {
-      id: 'FLG-' + Date.now() + '-' + Utilities.getUuid().slice(0, 4), date: now_(), baId: t.id,
-      baName: String(body.baName || t.id), type: String(body.type || '').slice(0, 40),
-      detail: String(body.detail || '').slice(0, 300), status: 'open'
-    });
+  appendFast_(sheet_(FLAGS_SHEET), {
+    id: 'FLG-' + Date.now() + '-' + Utilities.getUuid().slice(0, 4), date: now_(), baId: t.id,
+    baName: String(body.baName || t.id), type: String(body.type || '').slice(0, 40),
+    detail: String(body.detail || '').slice(0, 300), status: 'open'
   });
   return { ok: true };
 }
@@ -273,7 +279,7 @@ function upsertPresence_(u, p) {
 
 function appendTrack_(u, loc, activity) {
   if (loc.lat == null || loc.lng == null) return;
-  appendByHeader_(sheet_(TRACK_SHEET), {
+  appendFast_(sheet_(TRACK_SHEET), {
     date: now_(), baId: u.id, baName: u.name, lat: num_(loc.lat), lng: num_(loc.lng),
     accuracy: num_(loc.accuracy), activity: String(activity || '').slice(0, 200)
   });
@@ -708,6 +714,7 @@ function surveySaveUser_(body) {
     if (!editing || editing.role !== role) put(t.c.role, role === 'ba' ? '' : role);
     put(t.c.active, active ? 'yes' : 'no');
     if (password) put(t.c.pass, password);
+    clearUsersCache_();
     result = { ok: true, id: id };
   });
   return result;
@@ -814,6 +821,27 @@ function distanceM_(lat1, lng1, lat2, lng2) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 function now_() { return new Date().toISOString(); }
+
+// Runs fn only if the lock is free within `ms`. Used for presence, which the
+// next heartbeat refreshes anyway, so a busy sheet never makes a phone wait.
+function tryLock_(ms, fn) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(ms)) return false;
+  try { fn(); } finally { lock.releaseLock(); }
+  return true;
+}
+
+// One atomic appendRow: safe without the lock. Text columns get a leading
+// apostrophe so IDs and ISO dates stay as typed.
+function appendFast_(sheet, obj) {
+  var headers = headers_(sheet);
+  var values = headers.map(function (h) {
+    if (!Object.prototype.hasOwnProperty.call(obj, h)) return '';
+    var v = safe_(obj[h]);
+    return TEXT_COLS.indexOf(h) > -1 && typeof v === 'string' && v !== '' && v.charAt(0) !== "'" ? "'" + v : v;
+  });
+  sheet.appendRow(values);
+}
 
 function withLock_(fn) {
   var lock = LockService.getScriptLock();

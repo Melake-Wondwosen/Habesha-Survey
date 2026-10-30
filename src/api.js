@@ -17,13 +17,13 @@ function explainHtml(text) {
   return 'The server sent an error page instead of data. Check the Apps Script deployment.'
 }
 
-export async function post(action, payload = {}) {
+export async function post(action, payload = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
   if (DEMO) {
     const { demoCall } = await import('./demo')
     return demoCall(action, payload)
   }
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
   let res
   try {
     // text/plain keeps this a CORS "simple request": no OPTIONS preflight,
@@ -65,7 +65,8 @@ export function deviceLabel() {
 
 // `need` = 'admin' on the admin sign-in page, so other accounts are turned away there
 export async function login(username, password, location, need) {
-  const data = await post('surveyLogin', { username: username.trim(), password, location, device: deviceLabel(), need })
+  // Sign-in gets extra time: the first call after a quiet spell wakes Apps Script up
+  const data = await post('surveyLogin', { username: username.trim(), password, location, device: deviceLabel(), need }, 45000)
   const user = data.user
   if (!user || !user.token) throw new Error('Sign-in worked but no session came back. Is Survey.gs deployed?')
   const role = ['manager', 'admin'].includes(user.role) ? user.role : 'ba'
