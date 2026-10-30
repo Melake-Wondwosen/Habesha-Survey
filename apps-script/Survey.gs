@@ -51,7 +51,7 @@ var OUTLETS_SHEET = 'Outlets';
 var NOTICES_SHEET = 'Notifications';
 // Master outlet data. The BA types only the ID; everything else comes from here.
 var NATIONAL_SHEET = 'National Outlet';
-var SURVEY_BRANDS = ['Habesha', 'Harar', 'Dashen', 'Bedele', 'StGeorge', 'Meta', 'Other'];
+var SURVEY_BRANDS = ['BGI', 'Heineken', 'Dashen', 'Habesha', 'Anbesa', 'Kegna'];
 var ROLES = ['ba', 'manager', 'admin'];
 // A survey further than this from its outlet's coordinates raises an alert
 var OUTLET_RANGE_M = 100;

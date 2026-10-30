@@ -23,7 +23,7 @@ function build() {
     return { id: `AA-${String(1000 + i)}`, name: `${pick(PLACES)} ${pick(KINDS)}`, ba: b, lat: home[b].lat + (rnd() - 0.5) * 0.02, lng: home[b].lng + (rnd() - 0.5) * 0.02 }
   })
 
-  const weights = { Habesha: 1.0, Harar: 0.9, Dashen: 1.1, Bedele: 0.8, StGeorge: 1.2, Meta: 1.0, Other: 0.3 }
+  const weights = { BGI: 1.2, Heineken: 1.1, Dashen: 1.0, Habesha: 1.0, Anbesa: 0.6, Kegna: 0.5 }
   const surveys = []
   outlets.forEach((o, i) => {
     const visits = rnd() < 0.15 ? 2 : 1

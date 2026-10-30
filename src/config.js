@@ -7,13 +7,12 @@ export const DEMO = import.meta.env.MODE === 'demo'
 
 // Screen order. `key` becomes the sheet column suffix: rankHabesha, cratesHabesha, ...
 export const BRANDS = [
-  { key: 'Habesha', label: 'Habesha', ours: true },
-  { key: 'Harar', label: 'Harar' },
+  { key: 'BGI', label: 'BGI' },
+  { key: 'Heineken', label: 'Heineken' },
   { key: 'Dashen', label: 'Dashen' },
-  { key: 'Bedele', label: 'Bedele' },
-  { key: 'StGeorge', label: 'St. George' },
-  { key: 'Meta', label: 'Meta' },
-  { key: 'Other', label: 'Other' },
+  { key: 'Habesha', label: 'Habesha', ours: true },
+  { key: 'Anbesa', label: 'Anbesa' },
+  { key: 'Kegna', label: 'Kegna' },
 ]
 
 // Step 4. The exact strings land in the `reason` column, so edit with care
