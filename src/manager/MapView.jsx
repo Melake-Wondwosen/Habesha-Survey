@@ -28,10 +28,10 @@ export default function MapView({ team, surveys, selectedId, onSelect, now }) {
     map.current = L.map(box.current, { zoomControl: true, attributionControl: true }).setView(ADDIS, 12)
     // The demo preview can't load map tiles, so it draws on a plain grid instead
     if (!DEMO) {
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      // OpenStreetMap's own tiles: no API key needed
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        subdomains: 'abcd',
-        attribution: '&copy; OpenStreetMap &copy; CARTO',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map.current)
     }
     layers.current = L.layerGroup().addTo(map.current)
