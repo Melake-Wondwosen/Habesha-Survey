@@ -15,6 +15,60 @@ export function Pattern({ className = '', ...rest }) {
   return <img src={pattern} alt="" aria-hidden="true" className={`block w-full max-w-xs mx-auto ${className}`} draggable="false" {...rest} />
 }
 
+// Moving version of the pattern band for the sign-in screen. The diamonds are
+// drawn as shapes so each one can move: the band drifts sideways in a seamless
+// loop, the motifs swell in a wave, and a light glint passes over them.
+const PT_UNIT = 180
+const pd = (cx, cy, r) => `M${cx} ${cy - r}L${cx + r} ${cy}L${cx} ${cy + r}L${cx - r} ${cy}Z`
+
+function PatternUnit({ x, i }) {
+  const big = x + 50
+  const mid = x + 140
+  return (
+    <g>
+      <g className="pt-pulse" style={{ animationDelay: `${(i * 2) * 0.35}s` }}>
+        <path d={pd(big, 56, 44)} />
+        <path d={pd(big, 56, 32)} />
+        <path d={pd(big, 56, 20)} />
+        <path d={pd(big, 56, 8)} className="pt-solid" />
+      </g>
+      {[[-46, -34], [46, -34], [-46, 34], [46, 34]].map(([dx, dy], k) => (
+        <path key={k} d={pd(big + dx, 56 + dy, 6)} className="pt-twinkle" style={{ animationDelay: `${(i * 2 + k * 0.5) * 0.35}s` }} />
+      ))}
+      <g className="pt-pulse" style={{ animationDelay: `${(i * 2 + 1) * 0.35}s` }}>
+        <path d={pd(mid, 56, 22)} />
+        <path d={pd(mid, 56, 11)} />
+        <path d={pd(mid, 56, 4)} className="pt-solid" />
+      </g>
+      {[[0, -36], [0, 36], [-32, 0], [32, 0]].map(([dx, dy], k) => (
+        <path key={k} d={pd(mid + dx, 56 + dy, 5)} className="pt-twinkle" style={{ animationDelay: `${(i * 2 + 1 + k * 0.5) * 0.35}s` }} />
+      ))}
+    </g>
+  )
+}
+
+export function MovingPattern({ className = '', units = 4, ...rest }) {
+  const w = units * PT_UNIT
+  const strip = Array.from({ length: units * 2 }, (_, i) => <PatternUnit key={i} x={i * PT_UNIT} i={i % units} />)
+  return (
+    <div aria-hidden="true" className={`pt-band relative overflow-hidden ${className}`} {...rest}>
+      <svg viewBox={`0 0 ${w} 112`} className="block w-full h-auto" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="pt-gold" x1="0" y1="0" x2={w * 2} y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stopColor="#d9bc6a" />
+            <stop offset="0.5" stopColor="#b58a35" />
+            <stop offset="1" stopColor="#d9bc6a" />
+          </linearGradient>
+        </defs>
+        <g className="pt-drift" style={{ '--pt-shift': `-${w}px` }} fill="none" stroke="url(#pt-gold)" strokeWidth="5" strokeLinejoin="miter">
+          {strip}
+        </g>
+      </svg>
+      <span className="pt-glint pointer-events-none absolute inset-y-0 -left-1/3 w-1/3" />
+    </div>
+  )
+}
+
 export function Button({ variant = 'primary', className = '', ...props }) {
   const base =
     'w-full min-h-[52px] rounded-2xl px-5 text-[17px] font-semibold active:scale-[0.97] disabled:opacity-40 disabled:active:scale-100 disabled:cursor-not-allowed'

@@ -159,6 +159,33 @@ input[type="number"]::-webkit-outer-spin-button {
   .anim-sheet { animation: rise 0.4s var(--ease-soft) backwards; }
 }
 
+/* Moving pattern on the sign-in screen */
+.pt-band {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent);
+}
+.pt-drift { animation: pt-drift 36s linear infinite; }
+.pt-band svg .pt-solid { fill: url(#pt-gold); }
+.pt-pulse { transform-box: fill-box; transform-origin: center; animation: pt-pulse 2.8s ease-in-out infinite; }
+.pt-twinkle { transform-box: fill-box; transform-origin: center; animation: pt-twinkle 2.8s ease-in-out infinite; }
+.pt-glint {
+  background: linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, 0.85) 50%, transparent 100%);
+  animation: pt-glint 5.5s ease-in-out infinite;
+}
+@keyframes pt-drift { to { transform: translateX(var(--pt-shift)); } }
+@keyframes pt-pulse {
+  0%, 100% { transform: scale(0.92); opacity: 0.75; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+@keyframes pt-twinkle {
+  0%, 100% { transform: scale(0.6) rotate(0deg); opacity: 0.35; }
+  50% { transform: scale(1.15) rotate(90deg); opacity: 1; }
+}
+@keyframes pt-glint {
+  0% { transform: translateX(0); }
+  60%, 100% { transform: translateX(420%); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
