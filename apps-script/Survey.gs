@@ -694,3 +694,39 @@ function surveySetup() {
     Logger.log('Admin account created. Username: admin  Password: ' + pass);
   }
 }
+
+/* Run from the editor to copy users (with passwords and roles) from the wheel
+   app's sheet. Safe to run again: usernames already here are skipped. */
+var WHEEL_SHEET_ID = '1c79mDNHJStKA6IJIF0-VO50vnMxeszSKT4R9JIQltAU';
+
+function importWheelUsers() {
+  var src = SpreadsheetApp.openById(WHEEL_SHEET_ID).getSheetByName('Users');
+  if (!src) throw new Error('Users tab not found in the wheel app sheet.');
+  var values = src.getDataRange().getValues();
+  var head = values[0].map(function (h) { return String(h).trim().toLowerCase(); });
+  var at = function (row, name) { var i = head.indexOf(name); return i > -1 ? String(row[i]).trim() : ''; };
+
+  var target = sheet_(USERS_SHEET);
+  var have = {}, ids = {};
+  readUsers_().forEach(function (u) { have[u.username.toLowerCase()] = true; ids[u.id] = true; });
+
+  var added = 0, skipped = 0;
+  withLock_(function () {
+    for (var r = 1; r < values.length; r++) {
+      var username = at(values[r], 'username');
+      if (!username) continue;
+      if (have[username.toLowerCase()]) { skipped++; continue; }
+      var id = at(values[r], 'id') || username;
+      if (ids[id]) id = id + '-' + r;
+      var role = at(values[r], 'role').toLowerCase();
+      appendByHeader_(target, {
+        id: id, username: username, password: at(values[r], 'password'),
+        name: at(values[r], 'name') || username,
+        role: role.indexOf('admin') > -1 ? 'admin' : role.indexOf('manager') > -1 ? 'manager' : '',
+        active: 'yes'
+      });
+      have[username.toLowerCase()] = true; ids[id] = true; added++;
+    }
+  });
+  Logger.log('Imported ' + added + ' users. Skipped ' + skipped + ' already here.');
+}
