@@ -13,7 +13,7 @@ The survey app has its own Google Sheet and Apps Script project, separate from t
 3. Run `surveySetup` once and approve the permissions. It creates the Users, Surveys, Presence, Track, Logins, Flags, Outlets and Notifications tabs, the signing secret, and an `admin` account. The admin password is in the Users tab.
 4. Deploy > New deployment > Web app. Execute as Me, Who has access Anyone.
 5. Paste the `/exec` URL into `src/config.js` (`API_URL`) and push. Vercel redeploys.
-6. Sign in at `/admin/login` as `admin`, change the password, add users, and use Outlets > Import to paste the outlet master from Excel: Outlet ID, Outlet name, Latitude, Longitude.
+6. Sign in on the normal sign-in page as `admin`, change the password, add users, and use Outlets > Import to paste the outlet master from Excel: Outlet ID, Outlet name, Latitude, Longitude.
 
 After any change to the script, use Deploy > Manage deployments > Edit > New version so the URL stays the same.
 
@@ -35,7 +35,7 @@ BAs can't sign in without a location fix. Managers and admins can, since they're
 
 ## Admin console
 
-`/admin/login` is a separate sign-in that only accepts admin accounts. The console has five tabs:
+Admins sign in on the same page as everyone else and land on the console. The console has five tabs:
 
 - Users: add BAs, managers and admins, reset passwords, block accounts. An admin can't remove their own admin access.
 - Outlets: the outlet master (ID and name). Add, edit, deactivate, or paste the whole list from Excel.

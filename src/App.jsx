@@ -13,7 +13,6 @@ import { Emblem, Spinner } from './components/ui'
 // Manager and admin screens only download for those roles
 const Manager = lazy(() => import('./manager/Manager'))
 const Admin = lazy(() => import('./admin/Admin'))
-const AdminLogin = lazy(() => import('./admin/AdminLogin'))
 
 // Demo bundles are opened from arbitrary paths, so they route on the hash.
 const Router = DEMO ? HashRouter : BrowserRouter
@@ -59,11 +58,11 @@ export default function App() {
       <Suspense fallback={<Loading />}>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/login" element={<Navigate to="/login" replace />} />
           <Route path="/" element={<RequireRole roles={['ba']}><BaShell><Home /></BaShell></RequireRole>} />
           <Route path="/survey" element={<RequireRole roles={['ba']}><BaShell><Survey /></BaShell></RequireRole>} />
           <Route path="/manager" element={<RequireRole roles={['manager', 'admin']}><Manager /></RequireRole>} />
-          <Route path="/admin" element={<RequireRole roles={['admin']} login="/admin/login"><Admin /></RequireRole>} />
+          <Route path="/admin" element={<RequireRole roles={['admin']}><Admin /></RequireRole>} />
           <Route path="*" element={<Navigate to={homeFor(getUser())} replace />} />
         </Routes>
       </Suspense>

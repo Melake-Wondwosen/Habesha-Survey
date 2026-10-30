@@ -53,7 +53,7 @@ export default function Admin() {
   function signOut() {
     clearNotesMemory()
     clearUser()
-    navigate('/admin/login', { replace: true })
+    navigate('/login', { replace: true })
   }
 
   const pending = data ? data.outlets.filter((o) => o.status === 'pending').length : 0

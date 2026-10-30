@@ -1,4 +1,4 @@
-import { Link, Navigate, useNavigate } from 'react-router'
+import { Navigate, useNavigate } from 'react-router'
 import { getUser } from '../storage'
 import { homeFor } from '../roles'
 import { Logo, Pattern } from '../components/ui'
@@ -20,9 +20,6 @@ export default function Login() {
         <div className="mt-8" style={{ '--i': 3 }}>
           <SignInForm onDone={(u) => navigate(homeFor(u), { replace: true })} />
         </div>
-        <Link to="/admin/login" className="mt-8 mx-auto text-xs text-gold-dark link-hover" style={{ '--i': 4 }}>
-          Admin
-        </Link>
       </div>
     </main>
   )
