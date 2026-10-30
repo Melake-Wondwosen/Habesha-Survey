@@ -97,7 +97,7 @@ export default function Manager() {
           <div className="flex items-center gap-2 min-[380px]:gap-3">
             <Emblem className="w-11 h-11 shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs uppercase tracking-wider text-gold truncate">Manager</p>
+              <p className="text-xs uppercase tracking-wider text-gold truncate">{data?.division ? `Manager · ${data.division}` : user.role === 'admin' ? 'Manager view · All divisions' : 'Manager'}</p>
               <p className="font-serif text-lg truncate">{user.name}</p>
             </div>
             {user.role === 'admin' && (

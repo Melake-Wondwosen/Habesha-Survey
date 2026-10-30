@@ -108,6 +108,7 @@ export function UsersTab({ data, reload, say }) {
                 <span className={`block font-semibold truncate ${u.active ? '' : 'text-ink/45 line-through'}`}>{u.name}</span>
                 <span className="block text-xs text-ink/55 truncate">
                   {u.username} · {u.id}
+                  {u.region ? ` · ${u.region}` : ''}
                   {u.lastSeen ? ` · seen ${when(u.lastSeen)}` : ''}
                 </span>
               </span>
@@ -120,18 +121,19 @@ export function UsersTab({ data, reload, say }) {
         ))}
         {!list.length && <li className="px-4 py-8 text-center text-sm text-ink/55">No users match.</li>}
       </ul>
-      {editing && <UserSheet user={editing.id ? editing : null} reload={reload} say={say} onClose={() => setEditing(null)} />}
+      {editing && <UserSheet user={editing.id ? editing : null} divisions={data.divisions || []} reload={reload} say={say} onClose={() => setEditing(null)} />}
     </>
   )
 }
 
-function UserSheet({ user, reload, say, onClose }) {
+function UserSheet({ user, divisions, reload, say, onClose }) {
   const me = getUser()
   const [f, setF] = useState({
     name: user?.name || '',
     username: user?.username || '',
     id: user?.id || '',
     role: user?.role || 'ba',
+    region: user?.region || '',
     password: '',
     active: user ? user.active : true,
   })
@@ -170,6 +172,16 @@ function UserSheet({ user, reload, say, onClose }) {
             { value: 'admin', label: 'Admin' },
           ]}
         />
+      </Field>
+      <Field label="Division" hint={f.role === 'manager' ? 'The manager sees only this division. Leave blank to see all.' : f.role === 'ba' ? 'Sets the outlets on the BA\'s phone and which manager sees them.' : undefined}>
+        <select className={inputClass} value={f.region} onChange={put('region')}>
+          <option value="">{f.role === 'manager' ? 'All divisions' : 'None'}</option>
+          {[...new Set([...divisions, ...(f.region ? [f.region] : [])])].map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
       </Field>
       <Field label="Password">
         <input className={inputClass} value={f.password} onChange={put('password')} autoComplete="new-password" placeholder={user ? 'Unchanged' : ''} />

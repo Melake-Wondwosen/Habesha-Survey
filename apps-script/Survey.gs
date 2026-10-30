@@ -204,7 +204,42 @@ function findUser_(id) {
   return null;
 }
 
-function publicUser_(u) { return { id: u.id, name: u.name, username: u.username, role: u.role, active: u.active }; }
+function publicUser_(u) { return { id: u.id, name: u.name, username: u.username, role: u.role, active: u.active, region: u.region || '' }; }
+
+/* ---------- divisions ---------- */
+// A manager's `region` in Users is their division. They see only BAs with the
+// same region and surveys of outlets in that division. Admins see everything.
+function sameDiv_(a, b) { return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase(); }
+
+function managerScope_(me) {
+  if (me.role !== 'manager' || !String(me.region || '').trim()) return null;
+  var ids = {};
+  readUsers_().forEach(function (u) { if (u.role === 'ba' && sameDiv_(u.region, me.region)) ids[u.id] = true; });
+  return { division: me.region, ids: ids };
+}
+
+// Division names from National Outlet, for the admin's user form. Cached 6 h.
+function divisionList_() {
+  var cache = CacheService.getScriptCache();
+  var hit = cache.get('divisions_v1');
+  if (hit) return JSON.parse(hit);
+  var out = [];
+  var sheet = ss_().getSheetByName(NATIONAL_SHEET);
+  if (sheet && sheet.getLastRow() > 1) {
+    var head = headers_(sheet).map(function (h) { return String(h).trim().toLowerCase(); });
+    var c = head.indexOf('division');
+    if (c > -1) {
+      var seen = {};
+      sheet.getRange(2, c + 1, sheet.getLastRow() - 1, 1).getValues().forEach(function (r) {
+        var v = String(r[0]).trim();
+        if (v && !seen[v]) { seen[v] = true; out.push(v); }
+      });
+      out.sort();
+    }
+  }
+  cache.put('divisions_v1', JSON.stringify(out), 21600);
+  return out;
+}
 
 /* ---------- login ---------- */
 
@@ -304,8 +339,10 @@ function notesFor_(u) {
   });
   if (u.role === 'manager' || u.role === 'admin') {
     var fSince = new Date(Date.now() - 14 * 864e5).toISOString();
+    var scope = u.role === 'manager' ? managerScope_(findUser_(u.id) || u) : null;
     readRows_(FLAGS_SHEET, 300).forEach(function (f) {
       if (String(f.status) === 'resolved' || String(f.date) < fSince) return;
+      if (scope && !scope.ids[String(f.baId)]) return;
       notes.push({ id: 'flag:' + f.id, date: String(f.date), kind: 'flag', title: String(f.baName) + ': ' + (FLAG_TEXT[f.type] || f.type), body: String(f.detail || '') });
     });
   }
@@ -634,16 +671,24 @@ function surveyManagerData_(body) {
   var me = requireUser_(body.token, ['manager', 'admin']);
   var from = body.from ? String(body.from) : '';
   var trackFrom = body.trackFrom ? String(body.trackFrom) : new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-  var bas = readUsers_().filter(function (u) { return u.role === 'ba' && u.active; })
-    .map(function (u) { return { id: u.id, name: u.name, username: u.username }; });
+  var scope = managerScope_(me);
+  var mine = function (baId) { return !scope || scope.ids[String(baId)]; };
+  var bas = readUsers_().filter(function (u) { return u.role === 'ba' && u.active && mine(u.id); })
+    .map(function (u) { return { id: u.id, name: u.name, username: u.username, region: u.region || '' }; });
   return {
     ok: true,
     serverTime: now_(),
+    division: scope ? scope.division : '',
     bas: bas,
-    presence: readRows_(PRESENCE_SHEET, 0),
-    surveys: readRows_(SURVEY_SHEET, 0).filter(function (r) { return !from || String(r.date) >= from; }),
-    track: readRows_(TRACK_SHEET, 8000).filter(function (r) { return String(r.date) >= trackFrom; }),
-    flags: readRows_(FLAGS_SHEET, 500).filter(function (r) { return String(r.date) >= trackFrom; }),
+    presence: readRows_(PRESENCE_SHEET, 0).filter(function (p) { return mine(p.baId); }),
+    // Outlets in the division; surveys saved before outlets carried a division count by BA
+    surveys: readRows_(SURVEY_SHEET, 0).filter(function (r) {
+      if (from && String(r.date) < from) return false;
+      if (!scope) return true;
+      return String(r.division || '').trim() ? sameDiv_(r.division, scope.division) : mine(r.baId);
+    }),
+    track: readRows_(TRACK_SHEET, 8000).filter(function (r) { return String(r.date) >= trackFrom && mine(r.baId); }),
+    flags: readRows_(FLAGS_SHEET, 500).filter(function (r) { return String(r.date) >= trackFrom && mine(r.baId); }),
     notes: notesFor_(me)
   };
 }
@@ -665,6 +710,7 @@ function surveyAdminData_(body) {
     }),
     flags: readRows_(FLAGS_SHEET, 1000).filter(function (f) { return String(f.date) >= since; }),
     notices: readRows_(NOTICES_SHEET, 200).filter(function (n) { return n.kind === 'notice'; }),
+    divisions: divisionList_(),
     notes: notesFor_(me)
   };
 }
@@ -678,6 +724,7 @@ function surveySaveUser_(body) {
   var role = ROLES.indexOf(u.role) > -1 ? u.role : 'ba';
   var active = u.active !== false;
   var password = String(u.password || '').trim();
+  var region = String(u.region || '').trim();
   if (!username || !name) return { ok: false, message: 'Name and username are required.' };
   if (/\s/.test(username)) return { ok: false, message: 'Usernames cannot contain spaces.' };
 
@@ -685,7 +732,7 @@ function surveySaveUser_(body) {
   withLock_(function () {
     var t = usersTable_();
     // Make sure the optional columns exist before writing to them
-    var need = [['id', 'id'], ['name', 'name'], ['role', 'role'], ['active', 'active']].filter(function (p) { return t.c[p[0]] < 0; });
+    var need = [['id', 'id'], ['name', 'name'], ['role', 'role'], ['active', 'active'], ['region', 'region']].filter(function (p) { return t.c[p[0]] < 0; });
     if (need.length) {
       var lastCol = t.sheet.getLastColumn();
       t.sheet.getRange(1, lastCol + 1, 1, need.length).setValues([need.map(function (p) { return p[1]; })]).setFontWeight('bold');
@@ -713,6 +760,7 @@ function surveySaveUser_(body) {
     // Leave the role cell exactly as typed unless the admin changed the role. BA is written blank.
     if (!editing || editing.role !== role) put(t.c.role, role === 'ba' ? '' : role);
     put(t.c.active, active ? 'yes' : 'no');
+    put(t.c.region, region);
     if (password) put(t.c.pass, password);
     clearUsersCache_();
     result = { ok: true, id: id };
