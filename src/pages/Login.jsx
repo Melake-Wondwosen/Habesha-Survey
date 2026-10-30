@@ -21,6 +21,12 @@ export default function Login() {
     idle.current = setTimeout(() => setFace((f) => ({ ...f, mood: both.username || both.password ? 'confused' : 'idle' })), 1300)
   }
 
+  // Pressing Sign in makes her smile; a failed sign-in puzzles her again
+  function status(st) {
+    clearTimeout(idle.current)
+    setFace((f) => ({ ...f, mood: st === 'signing' ? 'happy' : 'confused' }))
+  }
+
   if (current?.token) return <Navigate to={homeFor(current)} replace />
 
   return (
@@ -35,7 +41,7 @@ export default function Login() {
           <h1 className="font-serif text-2xl">Outlet Survey</h1>
         </div>
         <div className={`mt-8 ${night ? 'rounded-3xl bg-paper text-ink p-6 shadow-2xl' : ''}`} style={{ '--i': 3 }}>
-          <SignInForm onWatch={watch} onDone={(u) => navigate(homeFor(u), { replace: true })} />
+          <SignInForm onWatch={watch} onStatus={status} onDone={(u) => navigate(homeFor(u), { replace: true })} />
         </div>
       </div>
     </main>

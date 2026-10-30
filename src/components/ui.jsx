@@ -18,12 +18,14 @@ export function Logo({ className = '', ...rest }) {
 //   idle      looks straight at you
 //   watch     follows the text as you type (squints at a password)
 //   confused  head tilt, one eye half shut, a "?" beside her
+//   happy     big smile and smiling eyes (while signing in)
 const EYES = [80, 142] // centre x of each eye; both sit at y 132
 const almond = (cx) => `M${cx - 21} 132Q${cx - 2} 118 ${cx + 20} 131Q${cx - 2} 147 ${cx - 21} 132Z`
 
 export function WatchingLogo({ mood = 'idle', field = null, progress = 0, glow = false, className = '', ...rest }) {
   const watching = mood === 'watch'
   const confused = mood === 'confused'
+  const happy = mood === 'happy'
   // Pupils: across with the text, down towards the form while typing
   const px = watching ? -8 + 16 * Math.min(1, progress) : confused ? 2 : 0
   const py = watching ? (field === 'password' ? 5 : 3.5) : confused ? -2 : 0
@@ -51,6 +53,14 @@ export function WatchingLogo({ mood = 'idle', field = null, progress = 0, glow =
                     <circle cx={cx} cy="132" r="8.6" fill="#1d1612" />
                     <circle cx={cx + 3.4} cy="129.6" r="1.7" fill="#fff" />
                   </g>
+                  <path
+                    className="eye-lid-low"
+                    d={`M${cx - 24} 152L${cx - 24} 140Q${cx} 129 ${cx + 24} 140L${cx + 24} 152Z`}
+                    fill="rgb(131, 81, 39)"
+                    stroke="#1b120b"
+                    strokeWidth="2.4"
+                    style={{ transform: `translateY(${happy ? 0 : 16}px)` }}
+                  />
                   <rect
                     className="eye-lid"
                     x={cx - 23}
@@ -66,6 +76,13 @@ export function WatchingLogo({ mood = 'idle', field = null, progress = 0, glow =
                 <path d={almond(cx)} fill="none" stroke="#1b120b" strokeWidth="3.4" strokeLinejoin="round" />
               </g>
             ))}
+            {/* Smile: skin over the drawn lips, then a grin with teeth */}
+            <g className="smile" style={{ opacity: happy ? 1 : 0, transform: happy ? 'scale(1)' : 'scale(0.6)' }}>
+              <ellipse cx="111.5" cy="175.5" rx="20" ry="8.6" fill="rgb(131, 81, 39)" />
+              <path d="M93 171.5Q111.5 177 130 171.5Q111.5 191 93 171.5Z" fill="#fff" stroke="#1b120b" strokeWidth="2.4" strokeLinejoin="round" />
+              <path d="M96 174.5Q111.5 178.5 127 174.5" fill="none" stroke="#1b120b" strokeWidth="1" opacity="0.45" />
+              <path d="M90.5 169.5Q92 172 93.6 171.4M132.5 169.5Q131 172 129.4 171.4" fill="none" stroke="#1b120b" strokeWidth="1.8" strokeLinecap="round" />
+            </g>
           </svg>
         </div>
         <span

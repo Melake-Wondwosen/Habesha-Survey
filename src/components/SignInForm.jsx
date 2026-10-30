@@ -7,7 +7,8 @@ import { Button, Field, Notice, Spinner, inputClass } from './ui'
 // Shared by the main sign-in page and the admin sign-in page.
 // `need` = 'admin' makes the server turn away anyone who isn't an admin.
 // `onWatch` reports typing to the sign-in logo: (field, value, { username, password })
-export default function SignInForm({ need, onDone, onWatch, submitLabel = 'Sign in' }) {
+// `onStatus` reports 'signing' when Sign in is pressed and 'failed' if it doesn't work
+export default function SignInForm({ need, onDone, onWatch, onStatus, submitLabel = 'Sign in' }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState('')
@@ -19,6 +20,7 @@ export default function SignInForm({ need, onDone, onWatch, submitLabel = 'Sign 
     e.preventDefault()
     if (!username.trim() || !password) return
     setError('')
+    onStatus?.('signing')
 
     // Location is captured at every sign-in. The server refuses BAs without it;
     // managers and admins on a PC may not have one, so they get through.
@@ -54,6 +56,7 @@ export default function SignInForm({ need, onDone, onWatch, submitLabel = 'Sign 
       setUser(user)
       onDone(user)
     } catch (err) {
+      onStatus?.('failed')
       const isLocation = /location is required/i.test(err.message)
       setError(isLocation ? locationMessage(fixError) : err.message)
       // A wrong username or password shakes the form
