@@ -17,7 +17,7 @@ Field survey app for BAs, with a manager view in the same app. React 19, Vite, T
 
 ## Vercel
 
-New project from the same repo, Root Directory `survey-app`. Framework preset Vite. The site must be on HTTPS (Vercel is), or phones won't share location.
+New project from the same repo, Root Directory left empty (the app is at the repo root). Framework preset Vite. The site must be on HTTPS (Vercel is), or phones won't share location.
 
 ## What gets recorded
 
