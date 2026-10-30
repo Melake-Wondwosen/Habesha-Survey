@@ -8,7 +8,7 @@ import { countDone, getUser, pushQueue, setQueueWhy } from '../storage'
 import { Button, Sheet, Spinner } from '../components/ui'
 import { StepCrates, StepOutlet, StepRank, StepReason, stepReady } from '../components/steps'
 
-const EMPTY = { outletName: '', outletId: '', area: '', picked: false, order: [], otherBrand: '', crates: {}, reason: '', reasonOther: '' }
+const EMPTY = { outletName: '', outletId: '', division: '', agent: '', parentTerritory: '', territory: '', area: '', picked: false, offline: false, order: [], otherBrand: '', crates: {}, reason: '', reasonOther: '' }
 const STEPS = [StepOutlet, StepRank, StepCrates, StepReason]
 
 function makeId() {
@@ -18,7 +18,7 @@ function makeId() {
   return `SRV-${Date.now()}-${tail}`
 }
 
-function buildRecord(d, user, location) {
+function buildRecord(d, user, location, start) {
   const ranks = {}
   const crates = {}
   d.order.forEach((key, i) => {
@@ -36,6 +36,12 @@ function buildRecord(d, user, location) {
     location: location ? { lat: location.lat, lng: location.lng, accuracy: location.accuracy } : null,
     outletId: d.outletId.trim().toUpperCase(),
     outletName: d.outletName.trim(),
+    division: d.division,
+    agent: d.agent,
+    parentTerritory: d.parentTerritory,
+    territory: d.territory,
+    startedAt: start.at,
+    startLocation: start.fix ? { lat: start.fix.lat, lng: start.fix.lng, accuracy: start.fix.accuracy } : null,
     ranks,
     crates,
     otherBrandName: otherRanked ? d.otherBrand.trim() : '',
@@ -59,9 +65,40 @@ export default function Survey() {
 
   const [error, setError] = useState('')
 
+  // Start time and location are taken the moment the survey opens
+  const start = useRef({ at: new Date().toISOString(), fix: null })
+  const [startFix, setStartFix] = useState(null)
+  const [startLoc, setStartLoc] = useState('finding') // finding | ok | off
+  useEffect(() => {
+    let live = true
+    getFix()
+      .then((f) => {
+        start.current.fix = f
+        if (live) {
+          setStartFix(f)
+          setStartLoc('ok')
+        }
+      })
+      .catch((err) => {
+        // Weak signal: use the last fix if it's under two minutes old
+        const f = latestFix()
+        if (err?.code !== 1 && f && Date.now() - f.at < 120000) {
+          start.current.fix = f
+          if (live) {
+            setStartFix(f)
+            setStartLoc('ok')
+          }
+        } else if (live) setStartLoc('off')
+      })
+    return () => {
+      live = false
+    }
+  }, [])
+  const startTime = new Date(start.current.at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+
   useEffect(() => {
     scroller.current?.scrollTo(0, 0)
-    const where = data.outletName.trim() ? `${data.outletName.trim()} (${data.outletId.trim()})` : ''
+    const where = data.outletId.trim() ? `${data.outletName.trim() || 'outlet'} (${data.outletId.trim()})` : ''
     setActivity(step === 0 ? 'Starting a survey' : `Surveying ${where}, step ${step + 1} of 4`, step === 1)
   }, [step])
 
@@ -100,8 +137,8 @@ export default function Survey() {
       }
       fix = latestFix()
     }
-    const record = buildRecord(data, getUser(), fix)
-    setActivity(`Submitted survey at ${record.outletName} (${record.outletId})`, true)
+    const record = buildRecord(data, getUser(), fix, start.current)
+    setActivity(`Submitted survey at ${record.outletName || 'outlet'} (${record.outletId})`, true)
     try {
       if (!navigator.onLine) throw new Error('No connection. Could not reach the server.')
       await addSurvey(record)
@@ -146,6 +183,11 @@ export default function Survey() {
               ×
             </button>
           </div>
+          <p className="text-xs text-paper/60 -mt-1 mb-2">
+            Started {startTime}
+            <span className="text-paper/30"> · </span>
+            {startLoc === 'ok' ? <span className="text-gold">Location ±{startFix.accuracy} m</span> : startLoc === 'finding' ? 'Getting location…' : 'No location'}
+          </p>
           <div className="grid grid-cols-4 gap-1.5 mt-1">
             {STEPS.map((_, i) => (
               <span key={i} className="h-1.5 rounded-full bg-paper/20 overflow-hidden">

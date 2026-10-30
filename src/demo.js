@@ -128,6 +128,13 @@ export async function demoCall(action, p) {
     case 'ping':
     case 'notifications':
       return { ok: true, notes: demoNotes('ba'), outletsVersion: String(a.ver || 1) }
+    case 'lookupOutlet': {
+      const id = String(p.outletId || '').trim().toUpperCase()
+      const o = a.outlets.find((x) => x.status === 'active' && x.outletId === id)
+      return o
+        ? { ok: true, found: true, outlet: { outletId: id, outletName: o.outletName, division: 'North Addis', agent: 'Demo Agent plc', parentTerritory: 'Addis Ababa Gullele', territory: 'Addis Ababa Aware' } }
+        : { ok: true, found: false }
+    }
     case 'outlets':
       return { ok: true, version: String(a.ver || 1), list: a.outlets.filter((o) => o.status === 'active').map((o) => [o.outletId, o.outletName, o.lat ?? '', o.lng ?? '']) }
     case 'managerData':

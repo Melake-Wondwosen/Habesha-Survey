@@ -39,16 +39,18 @@ var LOGINS_SHEET = 'Logins';
 var FLAGS_SHEET = 'Flags';
 var OUTLETS_SHEET = 'Outlets';
 var NOTICES_SHEET = 'Notifications';
+// Master outlet data. The BA types only the ID; everything else comes from here.
+var NATIONAL_SHEET = 'National Outlet';
 var SURVEY_BRANDS = ['Habesha', 'Harar', 'Dashen', 'Bedele', 'StGeorge', 'Meta', 'Other'];
 var ROLES = ['ba', 'manager', 'admin'];
 // A survey further than this from its outlet's coordinates raises an alert
 var OUTLET_RANGE_M = 100;
 
-var SURVEY_HEADERS = ['id', 'date', 'baId', 'baName', 'outletId', 'outletName', 'city']
+var SURVEY_HEADERS = ['id', 'date', 'baId', 'baName', 'outletId', 'outletName', 'division', 'agent', 'parentTerritory', 'territory', 'city']
   .concat(SURVEY_BRANDS.map(function (b) { return 'rank' + b; }))
   .concat(['otherBrandName'])
   .concat(SURVEY_BRANDS.map(function (b) { return 'crates' + b; }))
-  .concat(['reason', 'reasonOther', 'lat', 'lng', 'accuracy', 'distanceM']);
+  .concat(['reason', 'reasonOther', 'lat', 'lng', 'accuracy', 'distanceM', 'startedAt', 'startLat', 'startLng', 'startAccuracy']);
 
 var SHEET_HEADERS = {
   Users: ['id', 'username', 'password', 'name', 'role', 'active'],
@@ -65,7 +67,7 @@ var SHEET_HEADERS = {
 var TEXT_COLS = ['id', 'username', 'password', 'name', 'active', 'key', 'date', 'baId', 'baName', 'outletId', 'outletName', 'otherBrandName', 'reason',
   'reasonOther', 'lastSeen', 'locTime', 'activity', 'device', 'detail', 'type', 'state', 'role', 'status',
   'requestedBy', 'requestedByName', 'createdAt', 'updatedAt', 'resolvedBy', 'resolvedAt',
-  'fromId', 'fromName', 'target', 'kind', 'title', 'body'];
+  'fromId', 'fromName', 'target', 'kind', 'title', 'body', 'division', 'agent', 'parentTerritory', 'territory', 'startedAt'];
 
 function surveyJson_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
@@ -74,6 +76,7 @@ function surveyJson_(obj) {
 function surveyRoute_(body) {
   var handlers = {
     surveyLogin: surveyLogin_,
+    lookupOutlet: surveyLookupOutlet_,
     addSurvey: surveyAddSurvey_,
     ping: surveyPing_,
     flag: surveyFlag_,
@@ -329,6 +332,65 @@ function activeOutletMap_() {
   return map;
 }
 
+/* ---------- national outlet lookup ---------- */
+
+// Finds an outlet by ID in the National Outlet tab. Headers are matched by
+// name, so columns can be moved. Returns null if the tab or the ID is missing.
+function nationalLookup_(id) {
+  id = normId_(id);
+  if (!id) return null;
+  var cache = CacheService.getScriptCache();
+  var hit = cache.get('nat_' + id);
+  if (hit) return hit === '-' ? null : JSON.parse(hit);
+
+  var sheet = SpreadsheetApp.getActive().getSheetByName(NATIONAL_SHEET);
+  if (!sheet || sheet.getLastRow() < 2) return null;
+  var head = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(function (h) { return String(h).trim().toLowerCase().replace(/[\s_]/g, ''); });
+  var col = function (names) {
+    for (var i = 0; i < names.length; i++) { var x = head.indexOf(names[i]); if (x > -1) return x; }
+    return -1;
+  };
+  var c = { id: col(['id', 'outletid', 'accountid']), name: col(['account', 'outletname', 'accountname', 'name']),
+    division: col(['division']), agent: col(['agent']), parent: col(['parentterritory']), territory: col(['territory']) };
+  if (c.id < 0) return null;
+
+  var found = sheet.getRange(2, c.id + 1, sheet.getLastRow() - 1, 1)
+    .createTextFinder(id).matchEntireCell(true).matchCase(false).findNext();
+  var out = null;
+  if (found) {
+    var row = sheet.getRange(found.getRow(), 1, 1, head.length).getValues()[0];
+    var at = function (i) { return i < 0 ? '' : String(row[i]).trim(); };
+    out = { outletId: id, outletName: at(c.name), division: at(c.division), agent: at(c.agent),
+      parentTerritory: at(c.parent), territory: at(c.territory) };
+  }
+  cache.put('nat_' + id, out ? JSON.stringify(out) : '-', 21600);
+  return out;
+}
+
+function nationalExists_() {
+  var sheet = SpreadsheetApp.getActive().getSheetByName(NATIONAL_SHEET);
+  return !!sheet && sheet.getLastRow() > 1;
+}
+
+// National Outlet first, then outlets the admin approved in the Outlets tab.
+function findOutlet_(id) {
+  var n = nationalLookup_(id);
+  if (n) return n;
+  var o = activeOutletMap_()[normId_(id)];
+  if (!o) return null;
+  return { outletId: normId_(id), outletName: String(o.outletName).replace(/^'/, ''), division: '', agent: '', parentTerritory: '', territory: '' };
+}
+
+function surveyLookupOutlet_(body) {
+  requireUser_(body.token);
+  var id = normId_(body.outletId);
+  if (!id) return { ok: false, message: 'Enter the outlet ID.' };
+  var o = findOutlet_(id);
+  if (!o) return { ok: true, found: false };
+  return { ok: true, found: true, outlet: o };
+}
+
 function surveyRequestOutlet_(body) {
   var u = requireUser_(body.token, ['ba', 'manager', 'admin']);
   var name = String(body.outletName || '').trim();
@@ -431,22 +493,24 @@ function surveyImportOutlets_(body) {
 
 function surveyAddSurvey_(body) {
   var s = body.survey;
-  if (!s || !s.outletId || !s.outletName) return { ok: false, message: 'Survey is missing the outlet.' };
+  if (!s || !s.outletId) return { ok: false, message: 'Survey is missing the outlet ID.' };
   // The token travels inside the survey, so a queued survey is credited to the BA
   // who filled it even if someone else is signed in when it uploads.
   var t = readToken_(s.token);
   if (!t || t.id !== String(s.baId)) return { ok: false, message: 'Survey has no valid sign-in. Sign out and in again.' };
 
-  // Once the outlet list is in use, a survey must name an active outlet, and the
-  // name always comes from the list.
+  // The BA only sends the ID. Name, division, agent and territory always come
+  // from the outlet data, so a survey can't carry wrong details.
   var outletId = normId_(s.outletId);
-  var outletName = String(s.outletName);
   var master = activeOutletMap_();
-  var outlet = master[outletId];
-  if (Object.keys(master).length) {
-    if (!outlet) return { ok: false, message: 'Outlet ' + outletId + ' is not on the outlet list.' };
-    outletName = String(outlet.outletName).replace(/^'/, '');
+  var outlet = master[outletId]; // only used for the distance check
+  var info = findOutlet_(outletId);
+  if (!info && (nationalExists_() || Object.keys(master).length)) {
+    return { ok: false, message: 'Outlet ID ' + outletId + ' is not in the outlet data.' };
   }
+  info = info || { outletName: String(s.outletName || ''), division: '', agent: '', parentTerritory: '', territory: '' };
+  var outletName = info.outletName;
+  var start = s.startLocation || {};
 
   var ranks = s.ranks || {};
   var crates = s.crates || {};
@@ -456,6 +520,8 @@ function surveyAddSurvey_(body) {
     date: s.date || now_(),
     baId: s.baId, baName: s.baName || '',
     outletId: outletId, outletName: outletName,
+    division: info.division, agent: info.agent, parentTerritory: info.parentTerritory, territory: info.territory,
+    startedAt: s.startedAt || '', startLat: num_(start.lat), startLng: num_(start.lng), startAccuracy: num_(start.accuracy),
     otherBrandName: s.otherBrandName || '',
     reason: s.reason || '', reasonOther: s.reasonOther || '',
     lat: num_(loc.lat), lng: num_(loc.lng), accuracy: num_(loc.accuracy), distanceM: ''

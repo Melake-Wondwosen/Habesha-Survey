@@ -1,8 +1,8 @@
-import { BRANDS, OUTLET_RANGE_M, REASONS, REASON_QUESTION } from '../config'
-import { useEffect, useMemo, useState } from 'react'
+import { BRANDS, REASONS, REASON_QUESTION } from '../config'
+import { useEffect, useRef, useState } from 'react'
 import { requestOutlet } from '../api'
-import { getFix, latestFix, locationMessage, onLocation } from '../location'
-import { matches, nearbyOutlets, onOutlets, outletList, searchUnlocated, unlocatedCount } from '../outlets'
+import { latestFix } from '../location'
+import { findOutlet, normOutletId } from '../outlets'
 import { Button, Field, Notice, Sheet, Spinner, inputClass } from './ui'
 
 function Title({ n, children, sub }) {
@@ -18,91 +18,84 @@ function Title({ n, children, sub }) {
 const brandLabel = (key, otherBrand) =>
   key === 'Other' && otherBrand.trim() ? otherBrand.trim() : BRANDS.find((b) => b.key === key).label
 
-// Step 1: pick the outlet from the list so name and ID are always correct.
-// Free typing is only allowed until the admin loads an outlet list.
-export function StepOutlet({ data, set }) {
-  const [query, setQuery] = useState('')
-  const [asking, setAsking] = useState(false)
-  const [fix, setFix] = useState(latestFix)
-  const [locError, setLocError] = useState(null)
-  const [locating, setLocating] = useState(false)
-  const [listVersion, setListVersion] = useState(0)
-  const hasList = outletList().length > 0
+// Step 1: the BA types only the outlet ID. Name, division, agent and territory
+// are filled from the National Outlet data, and the server fills them again on
+// save, so a survey sent offline still gets the right details.
+const DETAIL_ROWS = [
+  ['division', 'Division'],
+  ['agent', 'Agent'],
+  ['parentTerritory', 'Parent territory'],
+  ['territory', 'Territory'],
+]
+const CLEAR = { picked: false, offline: false, outletName: '', division: '', agent: '', parentTerritory: '', territory: '' }
 
-  async function locate() {
-    setLocating(true)
+export function StepOutlet({ data, set }) {
+  const [state, setState] = useState(data.picked ? 'found' : data.offline ? 'offline' : 'idle') // idle | looking | found | notfound | offline
+  const [asking, setAsking] = useState(false)
+  const seq = useRef(0)
+
+  async function look(raw) {
+    const id = normOutletId(raw)
+    const n = ++seq.current
+    if (id.length < 4) {
+      setState('idle')
+      return
+    }
+    setState('looking')
     try {
-      setFix(await getFix())
-      setLocError(null)
-    } catch (err) {
-      setLocError(err)
-    } finally {
-      setLocating(false)
+      const r = await findOutlet(id)
+      if (n !== seq.current) return
+      if (r.found) {
+        const o = r.outlet
+        set({ ...CLEAR, picked: true, outletId: id, outletName: o.outletName, division: o.division, agent: o.agent, parentTerritory: o.parentTerritory, territory: o.territory })
+        setState('found')
+      } else {
+        setState('notfound')
+      }
+    } catch {
+      if (n !== seq.current) return
+      set({ offline: true })
+      setState('offline')
     }
   }
 
-  // The list follows the BA as they walk: every new GPS fix re-checks the range
+  // Looks the ID up once the BA stops typing
   useEffect(() => {
-    const off = onLocation(({ fix: f, error }) => {
-      if (f) setFix(f)
-      setLocError(error)
-    })
-    const offList = onOutlets(() => setListVersion((v) => v + 1))
-    const f = latestFix()
-    if (!f || Date.now() - f.at > 60000) locate()
-    return () => {
-      off()
-      offList()
-    }
-  }, [])
+    if (data.picked) return
+    const t = setTimeout(() => look(data.outletId), 600)
+    return () => clearTimeout(t)
+  }, [data.outletId])
 
-  const near = useMemo(() => nearbyOutlets(fix, OUTLET_RANGE_M), [fix, listVersion])
-  const results = useMemo(() => [...near.filter((o) => matches(o, query)), ...searchUnlocated(query)], [near, query, listVersion])
-
-  if (!hasList) {
-    return (
-      <>
-        <Title n={1}>Which outlet are you in?</Title>
-        <div className="space-y-4 stagger">
-          <div style={{ '--i': 0 }}>
-            <Field label="Outlet name">
-              <input className={inputClass} value={data.outletName} onChange={(e) => set({ outletName: e.target.value })} autoComplete="off" placeholder="e.g. Abebe Bar" />
-            </Field>
-          </div>
-          <div style={{ '--i': 1 }}>
-            <Field label="Outlet ID">
-              <input
-                className={`${inputClass} uppercase tracking-wide`}
-                value={data.outletId}
-                onChange={(e) => set({ outletId: e.target.value.toUpperCase() })}
-                autoComplete="off"
-                autoCapitalize="characters"
-                autoCorrect="off"
-                spellCheck="false"
-              />
-            </Field>
-          </div>
-        </div>
-      </>
-    )
+  function type(e) {
+    seq.current++
+    set({ ...CLEAR, outletId: e.target.value.replace(/\s+/g, '').toUpperCase() })
+    setState('idle')
   }
 
   if (data.picked) {
     return (
       <>
-        <Title n={1}>Which outlet are you in?</Title>
+        <Title n={1}>Outlet</Title>
         <div className="anim-pop rounded-2xl bg-ink text-paper p-5 shadow-lg">
           <div className="flex items-start gap-3">
             <span className="w-9 h-9 rounded-full gold-gradient text-ink flex items-center justify-center shrink-0">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7" /></svg>
             </span>
             <div className="min-w-0">
-              <p className="font-serif text-xl leading-tight">{data.outletName}</p>
+              <p className="font-serif text-xl leading-tight">{data.outletName || 'No name in the data'}</p>
               <p className="text-gold font-semibold tracking-wide mt-1">{data.outletId}</p>
             </div>
           </div>
+          <dl className="mt-4 pt-4 border-t border-paper/15 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+            {DETAIL_ROWS.map(([k, label]) => (
+              <div key={k} className="contents">
+                <dt className="text-paper/55">{label}</dt>
+                <dd className="font-semibold min-w-0 break-words">{data[k] || '-'}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
-        <Button variant="ghost" className="mt-4 btn-hover" onClick={() => set({ picked: false, outletId: '', outletName: '' })}>
+        <Button variant="ghost" className="mt-4 btn-hover" onClick={() => { set({ ...CLEAR, outletId: '' }); setState('idle') }}>
           Change outlet
         </Button>
       </>
@@ -111,88 +104,39 @@ export function StepOutlet({ data, set }) {
 
   return (
     <>
-      <Title n={1}>Which outlet are you in?</Title>
-
-      <div className="flex items-center gap-2 rounded-2xl bg-ink text-paper pl-4 pr-1.5 py-1.5 mb-3 anim-rise">
-        <svg className="text-gold shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 21s-7-6.2-7-12a7 7 0 1 1 14 0c0 5.8-7 12-7 12z" />
-          <circle cx="12" cy="9" r="2.5" />
-        </svg>
-        <span className="flex-1 min-w-0 text-sm truncate">
-          {fix ? (
-            <>
-              <b className="text-gold">{near.length}</b> within {OUTLET_RANGE_M} m <span className="text-paper/50">· ±{fix.accuracy} m</span>
-            </>
-          ) : locating ? (
-            'Finding you…'
-          ) : (
-            'No location'
-          )}
-        </span>
-        <button
-          type="button"
-          onClick={locate}
-          disabled={locating}
-          aria-label="Refresh location"
-          className="btn-hover w-10 h-10 rounded-full flex items-center justify-center text-paper hover:bg-gold hover:text-ink disabled:opacity-60"
-        >
-          <svg className={locating ? 'animate-spin' : ''} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-            <path d="M21 3v6h-6" />
-          </svg>
-        </button>
+      <Title n={1} sub="Type the outlet ID. The rest fills in from the outlet data.">Outlet ID</Title>
+      <div className="relative anim-rise">
+        <input
+          className={`${inputClass} text-xl tracking-widest font-semibold pr-12`}
+          value={data.outletId}
+          onChange={type}
+          inputMode="numeric"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck="false"
+          placeholder="e.g. 1237916"
+          autoFocus
+        />
+        {state === 'looking' && (
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gold-dark">
+            <Spinner />
+          </span>
+        )}
       </div>
 
-      {locError?.code === 1 && <Notice className="mb-3">{locationMessage(locError)}</Notice>}
-
-      {(near.length > 4 || unlocatedCount() > 0) && (
-        <div className="relative mb-3">
-          <svg className="absolute left-4 top-1/2 -translate-y-1/2 text-ink/40" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-          <input
-            className={`${inputClass} pl-12`}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Outlet name or ID"
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck="false"
-          />
-        </div>
+      {state === 'notfound' && (
+        <Notice className="mt-3">Outlet ID {normOutletId(data.outletId)} is not in the outlet data. Check the number.</Notice>
       )}
-
-      <ul className="space-y-2 stagger">
-        {results.map((o, i) => (
-          <li key={o.outletId} style={{ '--i': i }}>
-            <button
-              type="button"
-              onClick={() => set({ picked: true, outletId: o.outletId, outletName: o.outletName })}
-              className="pick w-full min-h-[56px] text-left rounded-2xl bg-white border border-ink/12 px-4 py-2.5 active:scale-[0.98] flex items-center gap-3"
-            >
-              <span className="flex-1 min-w-0">
-                <span className="block font-semibold text-[17px] truncate">{o.outletName}</span>
-                <span className="block text-sm font-semibold text-gold-dark tracking-wide">{o.outletId}</span>
-              </span>
-              <span className={`shrink-0 text-sm font-semibold rounded-full px-2.5 py-1 ${o.distance == null ? 'bg-mist text-ink/50' : 'bg-gold/15 text-ink'}`}>
-                {o.distance == null ? 'No location' : `${o.distance} m`}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-
-      {fix && !results.length && (
-        <div className="anim-fade text-center py-8">
-          <p className="font-semibold">No outlets within {OUTLET_RANGE_M} m</p>
-          <Button variant="ghost" className="mt-4 w-auto! px-6 min-h-[44px] text-[15px]" onClick={locate} disabled={locating}>
-            {locating ? <Spinner /> : 'Refresh location'}
-          </Button>
-        </div>
+      {state === 'offline' && (
+        <Notice tone="info" className="mt-3">
+          No connection, so the outlet details can't be shown. You can carry on. They are filled in from the outlet data when the survey uploads.
+        </Notice>
       )}
 
       <Button variant="quiet" className="mt-4" onClick={() => setAsking(true)}>
         Not on the list?
       </Button>
-      {asking && <RequestOutlet initial={query} onClose={() => setAsking(false)} />}
+      {asking && <RequestOutlet initial={data.outletId} onClose={() => setAsking(false)} />}
     </>
   )
 }
@@ -387,7 +331,7 @@ export function StepReason({ data, set }) {
 
 // What each step needs before Continue / Submit unlocks
 export const stepReady = [
-  (d) => d.outletName.trim() !== '' && d.outletId.trim() !== '' && (d.picked || outletList().length === 0),
+  (d) => d.outletId.trim() !== '' && (d.picked || d.offline),
   (d) => d.order.length > 0 && (!d.order.includes('Other') || d.otherBrand.trim() !== ''),
   () => true,
   (d) => d.reason !== '' && (d.reason !== 'Other' || d.reasonOther.trim() !== ''),

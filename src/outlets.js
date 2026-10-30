@@ -1,4 +1,4 @@
-import { fetchOutlets } from './api'
+import { fetchOutlets, lookupOutlet } from './api'
 
 // The outlet list lives on the phone so BAs can pick outlets without signal.
 // Each entry is [id, name, lat, lng]. It refreshes whenever the server says
@@ -95,4 +95,44 @@ export function searchUnlocated(query, limit = 6) {
     .map((o) => ({ outletId: o[0], outletName: o[1], distance: null }))
     .filter((o) => matches(o, query))
     .slice(0, limit)
+}
+
+// Outlet ID lookup against the National Outlet data on the server. Found
+// outlets are kept on the phone, so an outlet surveyed before still fills in
+// without signal.
+const LOOKUP_KEY = 'outlet_lookup_v1'
+function lookupCache() {
+  try {
+    return JSON.parse(localStorage.getItem(LOOKUP_KEY)) || {}
+  } catch {
+    return {}
+  }
+}
+
+export const normOutletId = (id) => String(id || '').trim().toUpperCase()
+
+// Resolves { found: true, outlet } or { found: false }. Throws when the server
+// can't be reached and the outlet isn't cached.
+export async function findOutlet(id) {
+  const key = normOutletId(id)
+  const cached = lookupCache()[key]
+  try {
+    const d = await lookupOutlet(key)
+    if (d.found) {
+      const all = lookupCache()
+      all[key] = d.outlet
+      const keys = Object.keys(all)
+      if (keys.length > 500) keys.slice(0, keys.length - 500).forEach((k) => delete all[k])
+      try {
+        localStorage.setItem(LOOKUP_KEY, JSON.stringify(all))
+      } catch {
+        // storage full; skip caching
+      }
+      return { found: true, outlet: d.outlet }
+    }
+    return { found: false }
+  } catch (err) {
+    if (cached) return { found: true, outlet: cached }
+    throw err
+  }
 }
