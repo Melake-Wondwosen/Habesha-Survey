@@ -138,6 +138,8 @@ export default function Manager() {
 
         {data && (
           <>
+            <MarketShare share={share} />
+
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger">
               <Tile i={0} label="Online now" value={online} sub={`of ${team.length} BAs`} live />
               <Tile i={1} label="Active today" value={activeToday} />
@@ -162,7 +164,6 @@ export default function Manager() {
               </section>
             </div>
 
-            <MarketShare share={share} />
 
             <section className="rounded-2xl bg-white border border-ink/10 p-4">
               <h2 className="font-serif text-xl">Latest surveys</h2>
@@ -254,7 +255,7 @@ function MarketShare({ share }) {
     return () => cancelAnimationFrame(t)
   }, [])
   return (
-    <section className="rounded-2xl bg-white border border-ink/10 p-4 anim-rise" style={{ animationDelay: '240ms' }}>
+    <section className="rounded-2xl bg-white border border-ink/10 p-4 anim-rise">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-serif text-xl">Market share</h2>
         <p className="text-xs text-ink/55">
