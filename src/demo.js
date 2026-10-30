@@ -128,6 +128,11 @@ export async function demoCall(action, p) {
     case 'ping':
     case 'notifications':
       return { ok: true, notes: demoNotes('ba'), outletsVersion: String(a.ver || 1) }
+    case 'outletPack': {
+      const dict = ['North Addis', 'Demo Agent plc', 'Addis Ababa Gullele', 'Addis Ababa Aware']
+      const rows = a.outlets.filter((o) => o.status === 'active' && o.outletId).map((o) => [o.outletId, o.outletName, 0, 1, 2, 3])
+      return { ok: true, version: 'demo|', division: 'North Addis', dict, rows }
+    }
     case 'lookupOutlet': {
       const id = String(p.outletId || '').trim().toUpperCase()
       const o = a.outlets.find((x) => x.status === 'active' && x.outletId === id)

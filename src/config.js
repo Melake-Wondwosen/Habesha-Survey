@@ -31,7 +31,7 @@ export const REASONS = [
 // BAs only see outlets whose coordinates are within this distance of their phone
 export const OUTLET_RANGE_M = 100
 
-export const RETURN_HOME_MS = 1700
+export const RETURN_HOME_MS = 1200
 export const REQUEST_TIMEOUT_MS = 20000
 
 // Presence. A BA's phone reports location and activity this often while the app is open.

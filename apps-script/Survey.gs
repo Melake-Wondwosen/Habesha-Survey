@@ -87,6 +87,7 @@ function surveyRoute_(body) {
   var handlers = {
     surveyLogin: surveyLogin_,
     lookupOutlet: surveyLookupOutlet_,
+    outletPack: surveyOutletPack_,
     addSurvey: surveyAddSurvey_,
     ping: surveyPing_,
     flag: surveyFlag_,
@@ -160,7 +161,7 @@ function usersTable_() {
   };
   var c = { user: col(['username', 'user', 'login']), pass: col(['password', 'pass', 'pin']),
     id: col(['id', 'userid', 'baid']), name: col(['name', 'fullname', 'baname']), role: col(['role', 'type']),
-    active: col(['active', 'status']) };
+    active: col(['active', 'status']), region: col(['region', 'division']) };
   if (c.user < 0 || c.pass < 0) throw new Error('Users tab needs username and password columns.');
   var users = [];
   for (var r = 1; r < values.length; r++) {
@@ -176,7 +177,8 @@ function usersTable_() {
       id: c.id > -1 && row[c.id] !== '' ? String(row[c.id]).trim() : u,
       name: c.name > -1 && row[c.name] !== '' ? String(row[c.name]).trim() : u,
       role: role.indexOf('admin') > -1 ? 'admin' : role.indexOf('manager') > -1 ? 'manager' : 'ba',
-      active: ['no', 'false', 'inactive', 'blocked', '0'].indexOf(act) < 0
+      active: ['no', 'false', 'inactive', 'blocked', '0'].indexOf(act) < 0,
+      region: c.region > -1 ? String(row[c.region]).trim() : ''
     });
   }
   return { sheet: sheet, c: c, users: users };
@@ -237,7 +239,7 @@ function surveyPing_(body) {
   });
   if (body.state === 'offline') return { ok: true };
   // Piggy-back the bell and the outlet list version so the phone needs no extra calls
-  return { ok: true, notes: notesFor_(u), outletsVersion: outletsVersion_() };
+  return { ok: true, notes: notesFor_(u), outletsVersion: outletsVersion_(), packVersion: nationalVersion_() };
 }
 
 function surveyFlag_(body) {
@@ -376,6 +378,55 @@ function nationalLookup_(id) {
   }
   cache.put('nat_' + id, out ? JSON.stringify(out) : '-', 21600);
   return out;
+}
+
+// Changes whenever rows are added or removed, or the first or last ID changes.
+// Phones also refresh once a day, which covers edits in the middle.
+function nationalVersion_() {
+  var sheet = ss_().getSheetByName(NATIONAL_SHEET);
+  if (!sheet || sheet.getLastRow() < 2) return '';
+  var last = sheet.getLastRow(), cols = sheet.getLastColumn();
+  var a = sheet.getRange(2, 1, 1, cols).getValues()[0].join('|');
+  var b = sheet.getRange(last, 1, 1, cols).getValues()[0].join('|');
+  return last + '-' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, a + '#' + b)).slice(0, 10);
+}
+
+/* The BA's division from National Outlet, packed small for the phone: repeated
+   agent and territory names are sent once and referred to by number. A BA with
+   no region, or one that matches no division, gets every outlet. */
+function surveyOutletPack_(body) {
+  var u = requireUser_(body.token);
+  var version = nationalVersion_();
+  var region = String(u.region || '').trim().toLowerCase();
+  var key = version + '|' + region;
+  if (body.version && body.version === key) return { ok: true, same: true, version: key };
+
+  var sheet = ss_().getSheetByName(NATIONAL_SHEET);
+  if (!sheet || sheet.getLastRow() < 2) return { ok: true, version: key, division: '', dict: [], rows: [] };
+  var values = sheet.getDataRange().getValues();
+  var head = values[0].map(function (h) { return String(h).trim().toLowerCase().replace(/[\s_]/g, ''); });
+  var at = function (names) { for (var i = 0; i < names.length; i++) { var x = head.indexOf(names[i]); if (x > -1) return x; } return -1; };
+  var c = { id: at(['id', 'outletid', 'accountid']), name: at(['account', 'outletname', 'accountname', 'name']),
+    division: at(['division']), agent: at(['agent']), parent: at(['parentterritory']), territory: at(['territory']) };
+  if (c.id < 0) return { ok: true, version: key, division: '', dict: [], rows: [] };
+
+  var mine = region && c.division > -1 && values.some(function (r, i) { return i > 0 && String(r[c.division]).trim().toLowerCase() === region; });
+  var dict = [], index = {};
+  var ref = function (v) {
+    v = String(v == null ? '' : v).trim();
+    if (!(v in index)) { index[v] = dict.length; dict.push(v); }
+    return index[v];
+  };
+  var cell = function (r, i) { return i < 0 ? '' : r[i]; };
+  var rows = [];
+  for (var r = 1; r < values.length; r++) {
+    var row = values[r];
+    var id = normId_(row[c.id]);
+    if (!id) continue;
+    if (mine && String(row[c.division]).trim().toLowerCase() !== region) continue;
+    rows.push([id, String(cell(row, c.name)).trim(), ref(cell(row, c.division)), ref(cell(row, c.agent)), ref(cell(row, c.parent)), ref(cell(row, c.territory))]);
+  }
+  return { ok: true, version: key, division: mine ? u.region : '', dict: dict, rows: rows };
 }
 
 function nationalExists_() {

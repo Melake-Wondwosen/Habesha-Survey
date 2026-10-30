@@ -2,7 +2,7 @@ import { BRANDS, REASONS, REASON_QUESTION } from '../config'
 import { useEffect, useRef, useState } from 'react'
 import { requestOutlet } from '../api'
 import { latestFix } from '../location'
-import { findOutlet, normOutletId } from '../outlets'
+import { findOutlet, localOutlet, normOutletId } from '../outlets'
 import { Button, Field, Notice, Sheet, Spinner, inputClass } from './ui'
 
 function Title({ n, children, sub }) {
@@ -34,6 +34,11 @@ export function StepOutlet({ data, set }) {
   const [asking, setAsking] = useState(false)
   const seq = useRef(0)
 
+  function fill(id, o) {
+    set({ ...CLEAR, picked: true, outletId: id, outletName: o.outletName, division: o.division, agent: o.agent, parentTerritory: o.parentTerritory, territory: o.territory })
+    setState('found')
+  }
+
   async function look(raw) {
     const id = normOutletId(raw)
     const n = ++seq.current
@@ -46,9 +51,7 @@ export function StepOutlet({ data, set }) {
       const r = await findOutlet(id)
       if (n !== seq.current) return
       if (r.found) {
-        const o = r.outlet
-        set({ ...CLEAR, picked: true, outletId: id, outletName: o.outletName, division: o.division, agent: o.agent, parentTerritory: o.parentTerritory, territory: o.territory })
-        setState('found')
+        fill(id, r.outlet)
       } else {
         setState('notfound')
       }
@@ -62,13 +65,17 @@ export function StepOutlet({ data, set }) {
   // Looks the ID up once the BA stops typing
   useEffect(() => {
     if (data.picked) return
-    const t = setTimeout(() => look(data.outletId), 600)
+    const t = setTimeout(() => look(data.outletId), 450)
     return () => clearTimeout(t)
   }, [data.outletId])
 
+  // Outlets stored on the phone fill in on the keystroke, with no waiting
   function type(e) {
     seq.current++
-    set({ ...CLEAR, outletId: e.target.value.replace(/\s+/g, '').toUpperCase() })
+    const id = e.target.value.replace(/\s+/g, '').toUpperCase()
+    const o = id.length >= 4 ? localOutlet(id) : null
+    if (o) return fill(id, o)
+    set({ ...CLEAR, outletId: id })
     setState('idle')
   }
 

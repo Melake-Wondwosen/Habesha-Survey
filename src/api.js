@@ -77,6 +77,7 @@ export const notifications = () => authed('notifications')
 export const fetchOutlets = (version) => authed('outlets', { version })
 export const requestOutlet = (req) => authed('requestOutlet', req)
 export const lookupOutlet = (outletId) => authed('lookupOutlet', { outletId })
+export const fetchOutletPack = (version) => authed('outletPack', { version })
 export const managerData = (from, trackFrom) => authed('managerData', { from, trackFrom })
 export const adminData = () => authed('adminData')
 export const saveUser = (user) => authed('saveUser', { user })
@@ -107,14 +108,18 @@ let flushing = null
 export function flushQueue() {
   if (flushing) return flushing
   flushing = (async () => {
-    const pending = getQueue()
     let sent = 0
     let why = ''
-    for (const survey of pending) {
+    const tried = new Set()
+    // Keep going while new surveys land in the queue during the upload
+    for (;;) {
+      const next = getQueue().find((s) => !tried.has(s.id))
+      if (!next) break
+      tried.add(next.id)
       try {
-        await addSurvey(survey)
+        await addSurvey(next)
         sent++
-        setQueue(getQueue().filter((s) => s.id !== survey.id))
+        setQueue(getQueue().filter((s) => s.id !== next.id))
       } catch (err) {
         why = err.message
       }

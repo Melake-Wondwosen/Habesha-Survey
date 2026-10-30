@@ -1,4 +1,4 @@
-import { fetchOutlets, lookupOutlet } from './api'
+import { fetchOutletPack, fetchOutlets, lookupOutlet } from './api'
 
 // The outlet list lives on the phone so BAs can pick outlets without signal.
 // Each entry is [id, name, lat, lng]. It refreshes whenever the server says
@@ -97,42 +97,89 @@ export function searchUnlocated(query, limit = 6) {
     .slice(0, limit)
 }
 
-// Outlet ID lookup against the National Outlet data on the server. Found
-// outlets are kept on the phone, so an outlet surveyed before still fills in
-// without signal.
-const LOOKUP_KEY = 'outlet_lookup_v1'
-function lookupCache() {
+// National Outlet data for the BA's division, kept on the phone so an outlet
+// ID fills in the moment it's typed, with or without signal. Pulled after
+// sign-in and again when the server says the data changed, or once a day.
+const PACK_KEY = 'outlet_pack_v1'
+const PACK_MAX_AGE = 24 * 3600 * 1000
+let pack = null // { version, at, division, dict, rows }
+let packIndex = null // Map id -> row
+
+function loadPack() {
+  if (pack) return pack
   try {
-    return JSON.parse(localStorage.getItem(LOOKUP_KEY)) || {}
+    pack = JSON.parse(localStorage.getItem(PACK_KEY)) || null
   } catch {
-    return {}
+    pack = null
   }
+  return pack
+}
+
+function index() {
+  if (packIndex) return packIndex
+  packIndex = new Map()
+  for (const r of loadPack()?.rows || []) packIndex.set(r[0], r)
+  return packIndex
 }
 
 export const normOutletId = (id) => String(id || '').trim().toUpperCase()
 
-// Resolves { found: true, outlet } or { found: false }. Throws when the server
-// can't be reached and the outlet isn't cached.
+// Instant lookup on the phone. Null when the ID isn't in the stored data.
+export function localOutlet(id) {
+  const r = index().get(normOutletId(id))
+  if (!r) return null
+  const d = pack.dict
+  return { outletId: r[0], outletName: r[1], division: d[r[2]] || '', agent: d[r[3]] || '', parentTerritory: d[r[4]] || '', territory: d[r[5]] || '' }
+}
+
+export const hasPack = () => (loadPack()?.rows?.length || 0) > 0
+
+let packSync = null
+// `serverVersion` comes from the heartbeat; without it the pack refreshes when
+// it's over a day old.
+export function syncPack(serverVersion) {
+  const cur = loadPack()
+  const fresh = cur && Date.now() - cur.at < PACK_MAX_AGE
+  if (cur && (serverVersion ? cur.version.split('|')[0] === serverVersion : fresh)) return Promise.resolve(false)
+  if (packSync) return packSync
+  packSync = fetchOutletPack(cur?.version)
+    .then((d) => {
+      if (d.same) {
+        pack = { ...cur, at: Date.now() }
+      } else {
+        pack = { version: d.version, at: Date.now(), division: d.division, dict: d.dict, rows: d.rows }
+        packIndex = null
+      }
+      try {
+        localStorage.setItem(PACK_KEY, JSON.stringify(pack))
+      } catch {
+        // storage full: keep it in memory for this session
+      }
+      return true
+    })
+    .catch(() => false)
+    .finally(() => {
+      packSync = null
+    })
+  return packSync
+}
+
+export function clearPack() {
+  pack = null
+  packIndex = null
+  try {
+    localStorage.removeItem(PACK_KEY)
+  } catch {
+    // ignore
+  }
+}
+
+// Phone first, then the server (for outlets outside the BA's division or
+// added since the last download). Throws when neither can answer.
 export async function findOutlet(id) {
   const key = normOutletId(id)
-  const cached = lookupCache()[key]
-  try {
-    const d = await lookupOutlet(key)
-    if (d.found) {
-      const all = lookupCache()
-      all[key] = d.outlet
-      const keys = Object.keys(all)
-      if (keys.length > 500) keys.slice(0, keys.length - 500).forEach((k) => delete all[k])
-      try {
-        localStorage.setItem(LOOKUP_KEY, JSON.stringify(all))
-      } catch {
-        // storage full; skip caching
-      }
-      return { found: true, outlet: d.outlet }
-    }
-    return { found: false }
-  } catch (err) {
-    if (cached) return { found: true, outlet: cached }
-    throw err
-  }
+  const local = localOutlet(key)
+  if (local) return { found: true, outlet: local }
+  const d = await lookupOutlet(key)
+  return d.found ? { found: true, outlet: d.outlet } : { found: false }
 }

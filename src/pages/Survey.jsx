@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { addSurvey } from '../api'
+import { flushQueue } from '../api'
 import { getFix, latestFix, locationError, locationMessage } from '../location'
 import { setActivity } from '../presence'
 import { RETURN_HOME_MS } from '../config'
-import { clearDraft, countDone, getDraft, getUser, pushQueue, setDraft, setQueueWhy } from '../storage'
+import { clearDraft, countDone, getDraft, getUser, pushQueue, setDraft } from '../storage'
 import { Button, Sheet, Spinner } from '../components/ui'
 import { StepCrates, StepOutlet, StepRank, StepReason, stepReady } from '../components/steps'
 
@@ -141,37 +141,30 @@ export default function Survey() {
     go(3)
   }
 
+  // Submitting never waits on the network. The survey goes into the phone's
+  // queue, the BA sees it saved, and the upload runs in the background.
   async function submit() {
     setStatus('sending')
     setError('')
-    // Every survey carries the phone's location. Blocked location stops the submit;
-    // a weak signal falls back to the last fix rather than losing the survey.
+    if (locationError()?.code === 1) {
+      setError(locationMessage(locationError()))
+      setStatus('idle')
+      return
+    }
+    // Use the running GPS fix. Only if it's stale, give a fresh one 4 seconds.
     let fix = latestFix()
-    try {
-      if (locationError()?.code === 1) throw locationError()
-      if (!fix || Date.now() - fix.at > 120000) fix = await getFix()
-    } catch (err) {
-      if (err?.code === 1) {
-        setError(locationMessage(err))
-        setStatus('idle')
-        return
-      }
-      fix = latestFix()
+    if (!fix || Date.now() - fix.at > 5 * 60000) {
+      fix = await Promise.race([getFix().catch(() => null), new Promise((r) => setTimeout(() => r(null), 4000))])
+      fix = fix || latestFix() || start.current.fix
     }
     const record = buildRecord(data, getUser(), fix, start.current)
     finished.current = true
-    setActivity(`Submitted survey at ${record.outletName || 'outlet'} (${record.outletId})`, true)
-    try {
-      if (!navigator.onLine) throw new Error('No connection. Could not reach the server.')
-      await addSurvey(record)
-      setStatus('saved')
-    } catch (err) {
-      pushQueue(record)
-      setQueueWhy(err.message)
-      setStatus('queued')
-    }
+    pushQueue(record)
     clearDraft()
     countDone()
+    setActivity(`Submitted survey at ${record.outletName || 'outlet'} (${record.outletId})`, true)
+    setStatus(navigator.onLine ? 'saved' : 'queued')
+    flushQueue()
     setTimeout(() => navigate('/', { replace: true }), RETURN_HOME_MS)
   }
 

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { flushQueue, notifications } from '../api'
 import { locationMessage, onLocation } from '../location'
 import { addLocalNote, clearNotesMemory, setServerNotes } from '../notes'
-import { syncOutlets } from '../outlets'
+import { clearPack, syncOutlets, syncPack } from '../outlets'
 import { setActivity, stopPresence } from '../presence'
 import { clearDraft, clearUser, getDoneCounts, getDraft, getLastSync, getQueue, getQueueWhy, getUser, setLastSync } from '../storage'
 import Bell from '../components/Bell'
@@ -35,6 +35,7 @@ export default function Home() {
     if (syncing) return
     setSyncing(true)
     if (!quiet) setResult(null)
+    syncPack()
     const flush = await flushQueue()
     setPending(flush.left)
     setWhy(flush.why)
@@ -64,6 +65,7 @@ export default function Home() {
 
   function signOut() {
     stopPresence('Signed out')
+    clearPack()
     clearNotesMemory()
     clearUser()
     navigate('/login', { replace: true })
