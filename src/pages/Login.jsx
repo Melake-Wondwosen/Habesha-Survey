@@ -21,10 +21,10 @@ export default function Login() {
     idle.current = setTimeout(() => setFace((f) => ({ ...f, mood: both.username || both.password ? 'confused' : 'idle' })), 1300)
   }
 
-  // Pressing Sign in makes her smile; a failed sign-in puzzles her again
+  // Pressing Sign in: she looks at you; a failed sign-in puzzles her again
   function status(st) {
     clearTimeout(idle.current)
-    setFace((f) => ({ ...f, mood: st === 'signing' ? 'happy' : 'confused' }))
+    setFace((f) => ({ ...f, mood: st === 'signing' ? 'idle' : 'confused' }))
   }
 
   if (current?.token) return <Navigate to={homeFor(current)} replace />

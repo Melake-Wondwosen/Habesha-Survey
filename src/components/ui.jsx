@@ -18,14 +18,12 @@ export function Logo({ className = '', ...rest }) {
 //   idle      looks straight at you
 //   watch     follows the text as you type (squints at a password)
 //   confused  head tilt, one eye half shut, a "?" beside her
-//   happy     a light smile (while signing in)
 const EYES = [80, 142] // centre x of each eye; both sit at y 132
 const almond = (cx) => `M${cx - 21} 132Q${cx - 2} 118 ${cx + 20} 131Q${cx - 2} 147 ${cx - 21} 132Z`
 
 export function WatchingLogo({ mood = 'idle', field = null, progress = 0, glow = false, className = '', ...rest }) {
   const watching = mood === 'watch'
   const confused = mood === 'confused'
-  const happy = mood === 'happy'
   // Pupils: across with the text, down towards the form while typing
   const px = watching ? -8 + 16 * Math.min(1, progress) : confused ? 2 : 0
   const py = watching ? (field === 'password' ? 5 : 3.5) : confused ? -2 : 0
@@ -68,15 +66,6 @@ export function WatchingLogo({ mood = 'idle', field = null, progress = 0, glow =
                 <path d={almond(cx)} fill="none" stroke="#1b120b" strokeWidth="3.4" strokeLinejoin="round" />
               </g>
             ))}
-            {/* Light smile: skin over the drawn lips, then the same lips with the corners lifted */}
-            <g className="smile" style={{ opacity: happy ? 1 : 0 }}>
-              <ellipse cx="111.5" cy="175.5" rx="20" ry="8.6" fill="rgb(131, 81, 39)" />
-              <g fill="none" stroke="#1b120b" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M94 170Q100 166.6 106 168.2Q111.5 169.8 117 168.2Q123 166.6 129 170" />
-                <path d="M94 170Q111.5 179.5 129 170" />
-                <path d="M98.5 174.2Q111.5 182 124.5 174.2" />
-                <path d="M92.6 168.6Q93.4 170.3 94.8 170.6M130.4 168.6Q129.6 170.3 128.2 170.6" strokeWidth="1.5" />
-              </g>
             </g>
           </svg>
         </div>

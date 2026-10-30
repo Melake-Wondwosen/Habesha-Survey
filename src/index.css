@@ -191,7 +191,6 @@ input[type="number"]::-webkit-outer-spin-button {
 .face-tilt { transform-origin: 50% 85%; transition: transform 0.45s cubic-bezier(.34,1.56,.64,1); }
 .eye-move { transition: transform 0.18s ease-out; }
 .eye-lid { transform-box: fill-box; transform-origin: 50% 0; transition: transform 0.22s ease-out; }
-.smile { transition: opacity 0.35s ease-out; }
 .anim-shake { animation: shake 0.45s cubic-bezier(.36,.07,.19,.97) both; }
 @keyframes shake {
   10%, 90% { transform: translateX(-2px); }
