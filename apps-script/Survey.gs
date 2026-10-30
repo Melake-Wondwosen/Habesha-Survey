@@ -807,3 +807,15 @@ function importWheelUsers() {
   });
   Logger.log('Imported ' + added + ' users. Skipped ' + skipped + ' already here.');
 }
+
+/* Adds a Survey menu to the sheet, so setup can be run without the editor. */
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu('Survey')
+    .addItem('Run setup', 'surveySetupFromMenu')
+    .addToUi();
+}
+
+function surveySetupFromMenu() {
+  surveySetup();
+  SpreadsheetApp.getUi().alert('Setup done. Surveys, Presence, Logins, Track, Flags, Outlets and Notifications tabs are ready.');
+}
