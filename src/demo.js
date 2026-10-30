@@ -1,5 +1,5 @@
 // Made-up data for demo builds only (vite --mode demo). Never shipped to BAs.
-import { BRANDS, REASONS } from './config'
+import { BRANDS } from './config'
 
 // Made-up divisions and agents for the demo analysis
 const DEMO_GEO = [
@@ -46,7 +46,7 @@ function build() {
       const known = rnd() < 0.7
       const row = {
         id: `SRV-${Math.round(when)}-${i}${v}`, date: new Date(Math.min(when, now - 60000)).toISOString(), baId: bas[o.ba].id, baName: bas[o.ba].name,
-        outletId: o.id, outletName: o.name, division: o.division, agent: o.agent, parentTerritory: o.parentTerritory, territory: o.territory, city: '', otherBrandName: '', reason: pick(REASONS.slice(0, 6)), reasonOther: '',
+        outletId: o.id, outletName: o.name, division: o.division, agent: o.agent, parentTerritory: o.parentTerritory, territory: o.territory, city: '', otherBrandName: '', reason: '', reasonOther: '',
         lat: o.lat, lng: o.lng, accuracy: 10 + Math.round(rnd() * 25),
         posm: rnd() < 0.62 ? 'Yes' : 'No',
       }

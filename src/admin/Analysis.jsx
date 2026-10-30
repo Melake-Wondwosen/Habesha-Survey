@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { managerData } from '../api'
-import { BRANDS, REASONS, VISIBILITY_ITEMS } from '../config'
+import { BRANDS, VISIBILITY_ITEMS } from '../config'
 import { latestPerOutlet, marketShare, num, pct, text } from '../manager/calc'
 import { Notice, Spinner } from '../components/ui'
 
@@ -105,18 +105,6 @@ export default function Analysis() {
       })
       .sort((a, b) => b.outlets - a.outlets || b.surveys - a.surveys)
   }, [rows, group])
-
-  // Main reason, split by whether our brand or a competitor is #1
-  const reasons = useMemo(() => {
-    const count = (list) => {
-      const m = Object.fromEntries(REASONS.map((r) => [r, 0]))
-      for (const s of list) if (s.reason) m[s.reason] = (m[s.reason] || 0) + 1
-      return m
-    }
-    const oursTop = outlets.filter((s) => num(s['rank' + OURS.key]) === 1)
-    const otherTop = outlets.filter((s) => num(s['rank' + OURS.key]) !== 1 && s.reason)
-    return { oursTop: count(oursTop), otherTop: count(otherTop), nOurs: oursTop.length, nOther: otherTop.length }
-  }, [outlets])
 
   // Surveys per day across the period (max 30 bars)
   const daily = useMemo(() => {
@@ -303,12 +291,6 @@ export default function Analysis() {
                 </div>
               </Card>
 
-              <div className="grid lg:grid-cols-2 gap-4">
-                <Card title="Why the top brand sells most" sub="Latest survey per outlet">
-                  <ReasonBars title={`Where ${OURS.label} is #1`} counts={reasons.oursTop} n={reasons.nOurs} gold />
-                  <ReasonBars title="Where a competitor is #1" counts={reasons.otherTop} n={reasons.nOther} />
-                </Card>
-
                 {period !== 'all' && (
                   <Card title="Surveys per day">
                     <div className="flex items-end gap-1 h-40 pt-4">
@@ -325,7 +307,6 @@ export default function Analysis() {
                     </div>
                   </Card>
                 )}
-              </div>
             </>
           )}
         </>
@@ -355,28 +336,5 @@ function Card({ title, sub, right, children }) {
       </div>
       {children}
     </section>
-  )
-}
-
-function ReasonBars({ title, counts, n, gold }) {
-  const list = Object.entries(counts).filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1])
-  return (
-    <div className="mb-4 last:mb-0">
-      <p className="text-sm font-semibold mb-2">
-        {title} <span className="text-ink/50 font-normal">· {n} outlets</span>
-      </p>
-      {!list.length && <p className="text-sm text-ink/50">No answers yet</p>}
-      <div className="space-y-1.5">
-        {list.map(([reason, c]) => (
-          <div key={reason} className="flex items-center gap-2 text-sm">
-            <span className="w-36 sm:w-52 shrink-0 truncate text-ink/75" title={reason}>{reason}</span>
-            <span className="flex-1 h-2.5 rounded-full bg-mist overflow-hidden">
-              <span className={`block h-full rounded-full ${gold ? 'gold-gradient' : 'bg-ink-soft'}`} style={{ width: `${(c / n) * 100}%` }} />
-            </span>
-            <span className="w-12 text-right tabular-nums">{Math.round((c / n) * 100)}%</span>
-          </div>
-        ))}
-      </div>
-    </div>
   )
 }

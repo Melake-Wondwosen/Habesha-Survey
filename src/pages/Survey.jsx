@@ -6,10 +6,10 @@ import { setActivity } from '../presence'
 import { RETURN_HOME_MS } from '../config'
 import { clearDraft, countDone, getDraft, getUser, pushQueue, setDraft } from '../storage'
 import { Button, Sheet, Spinner } from '../components/ui'
-import { STEP_COUNT, StepCrates, StepOutlet, StepRank, StepReason, StepVisibility, stepReady } from '../components/steps'
+import { STEP_COUNT, StepCrates, StepOutlet, StepRank, StepVisibility, stepReady } from '../components/steps'
 
-const EMPTY = { outletName: '', outletId: '', division: '', agent: '', parentTerritory: '', territory: '', area: '', picked: false, offline: false, order: [], otherBrand: '', crates: {}, hasPosm: null, posmItems: [], reason: '', reasonOther: '' }
-const STEPS = [StepOutlet, StepRank, StepCrates, StepVisibility, StepReason]
+const EMPTY = { outletName: '', outletId: '', division: '', agent: '', parentTerritory: '', territory: '', area: '', picked: false, offline: false, order: [], otherBrand: '', crates: {}, hasPosm: null, posmItems: [] }
+const STEPS = [StepOutlet, StepRank, StepCrates, StepVisibility]
 
 function makeId() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -47,8 +47,6 @@ function buildRecord(d, user, location, start) {
     otherBrandName: otherRanked ? d.otherBrand.trim() : '',
     hasPosm: d.hasPosm,
     posmItems: d.hasPosm ? d.posmItems : [],
-    reason: d.reason,
-    reasonOther: d.reason === 'Other' ? d.reasonOther.trim() : '',
   }
 }
 

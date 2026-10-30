@@ -1,11 +1,11 @@
-import { BRANDS, REASONS, REASON_QUESTION, VISIBILITY_ITEMS } from '../config'
+import { BRANDS, VISIBILITY_ITEMS } from '../config'
 import { useEffect, useRef, useState } from 'react'
 import { requestOutlet } from '../api'
 import { latestFix } from '../location'
 import { findOutlet, localOutlet, normOutletId } from '../outlets'
 import { Button, Field, Notice, Sheet, Spinner, inputClass } from './ui'
 
-export const STEP_COUNT = 5
+export const STEP_COUNT = 4
 
 function Title({ n, children, sub }) {
   return (
@@ -314,7 +314,7 @@ const VIS_ICON = {
   Fridge: <><rect x="6" y="2" width="12" height="20" rx="2" /><path d="M6 10h12M9 5v2M9 13v3" /></>,
 }
 
-// Step 4: does Habesha have POSM here, and which pieces
+// Step 4 (last): does Habesha have POSM here, and which pieces
 export function StepVisibility({ data, set }) {
   const items = data.posmItems || []
   const toggle = (key) => set({ posmItems: items.includes(key) ? items.filter((k) => k !== key) : [...items, key] })
@@ -386,46 +386,10 @@ export function StepVisibility({ data, set }) {
   )
 }
 
-// Step 5: single-select reason
-export function StepReason({ data, set }) {
-  return (
-    <>
-      <Title n={5}>{REASON_QUESTION}</Title>
-      <div className="space-y-2.5 stagger">
-        {REASONS.map((r, i) => {
-          const on = data.reason === r
-          return (
-            <button
-              key={r}
-              style={{ '--i': i }}
-              type="button"
-              onClick={() => set({ reason: r })}
-              className={`pick w-full min-h-[54px] flex items-center gap-3 rounded-2xl border px-4 text-left active:scale-[0.98] ${
-                on ? 'bg-ink text-paper border-ink' : 'bg-white border-ink/15'
-              }`}
-            >
-              <span className={`w-5 h-5 shrink-0 rounded-full border-2 ${on ? 'border-gold bg-gold shadow-[inset_0_0_0_3px_#000]' : 'border-ink/30'}`} />
-              <span className="text-[17px] font-semibold">{r}</span>
-            </button>
-          )
-        })}
-      </div>
-      {data.reason === 'Other' && (
-        <div className="mt-5 anim-rise">
-          <Field label="What is the reason?">
-            <textarea className={`${inputClass} py-3 min-h-[96px]`} value={data.reasonOther} onChange={(e) => set({ reasonOther: e.target.value })} />
-          </Field>
-        </div>
-      )}
-    </>
-  )
-}
-
 // What each step needs before Continue / Submit unlocks
 export const stepReady = [
   (d) => d.outletId.trim() !== '' && (d.picked || d.offline),
   (d) => d.order.length > 0 && (!d.order.includes('Other') || d.otherBrand.trim() !== ''),
   () => true,
   (d) => d.hasPosm === false || (d.hasPosm === true && (d.posmItems || []).length > 0),
-  (d) => d.reason !== '' && (d.reason !== 'Other' || d.reasonOther.trim() !== ''),
 ]
