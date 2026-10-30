@@ -6,18 +6,20 @@ Field survey app for BAs, with a manager view in the same app. React 19, Vite, T
 
 ## Before the first deploy
 
-1. Copy `apps-script/Survey.gs` into the wheel app's Apps Script project as a new file.
-2. Add one line at the top of the existing `doPost` (shown at the top of `Survey.gs`). The survey app uses its own action names, so the wheel app's login is untouched.
-3. Add a `role` column to the Users tab and put `admin` against at least one account. After that, users are managed from the admin console.
-4. Run `surveySetup` once from the editor. It creates the Surveys, Presence, Track, Logins, Flags, Outlets and Notifications tabs and the signing secret.
-5. Deploy > Manage deployments > Edit > New version. Keep "Who has access" on Anyone.
-6. Paste the `/exec` URL into `src/config.js` (`API_URL`).
-7. Check the seven reasons and the crate hint in `src/config.js`.
-8. Sign in at `/admin/login` and use Outlets > Import to paste the outlet master from Excel: Outlet ID, Outlet name, Latitude, Longitude.
+The survey app has its own Google Sheet and Apps Script project, separate from the wheel app.
+
+1. Create a new Google Sheet, then Extensions > Apps Script.
+2. Replace `Code.gs` with `apps-script/Survey.gs` and save.
+3. Run `surveySetup` once and approve the permissions. It creates the Users, Surveys, Presence, Track, Logins, Flags, Outlets and Notifications tabs, the signing secret, and an `admin` account. The admin password is in the Users tab.
+4. Deploy > New deployment > Web app. Execute as Me, Who has access Anyone.
+5. Paste the `/exec` URL into `src/config.js` (`API_URL`) and push. Vercel redeploys.
+6. Sign in at `/admin/login` as `admin`, change the password, add users, and use Outlets > Import to paste the outlet master from Excel: Outlet ID, Outlet name, Latitude, Longitude.
+
+After any change to the script, use Deploy > Manage deployments > Edit > New version so the URL stays the same.
 
 ## Vercel
 
-New project from the same repo, Root Directory left empty (the app is at the repo root). Framework preset Vite. The site must be on HTTPS (Vercel is), or phones won't share location.
+Import this repo, Root Directory left empty. Framework preset Vite. The site must be on HTTPS (Vercel is), or phones won't share location.
 
 ## What gets recorded
 

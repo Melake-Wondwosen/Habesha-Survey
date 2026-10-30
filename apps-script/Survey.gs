@@ -1,22 +1,35 @@
 /**
- * Outlet Survey backend. Add this file to the SAME Apps Script project the
- * wheel app uses, then add ONE line at the top of your existing doPost:
+ * Outlet Survey backend. Standalone: it has its own spreadsheet and its own
+ * Apps Script project, separate from the wheel app.
  *
- *   function doPost(e) {
- *     var body = JSON.parse(e.postData.contents);
- *     var r = surveyRoute_(body); if (r) return surveyJson_(r);
- *     ... your existing wheel actions, untouched ...
- *   }
+ * Setup:
+ * 1. Create a new Google Sheet. Extensions > Apps Script.
+ * 2. Replace Code.gs with this file. Save.
+ * 3. Pick surveySetup in the function list and Run. Approve the permissions.
+ *    It creates every tab and an admin account. The admin password is in the
+ *    Users tab (and in the execution log). Change it after you first sign in.
+ * 4. Deploy > New deployment > Web app. Execute as: Me. Who has access: Anyone.
+ * 5. Copy the URL ending in /exec into src/config.js (API_URL).
  *
- * The survey app uses its own action names, so the wheel app's `login` is not
- * affected.
+ * After any code change: Deploy > Manage deployments > Edit > New version,
+ * so the /exec URL stays the same.
  *
- * Users tab: needs `username` and `password` columns. Optional `id`, `name`,
- * `role` and `active`. Role is "admin", "manager" or blank (= BA). Put "no"
- * in active to block a user. The admin console fills these in for you.
- *
- * Run surveySetup once, then: Deploy > Manage deployments > Edit > New version.
+ * Users tab: id, username, password, name, role, active. Role is "admin",
+ * "manager" or blank (= BA). Put "no" in active to block a user. The admin
+ * console fills these in for you.
  */
+
+function doPost(e) {
+  var body;
+  try { body = JSON.parse(e.postData.contents); } catch (err) { return surveyJson_({ ok: false, message: 'Bad request.' }); }
+  var r = surveyRoute_(body);
+  return surveyJson_(r || { ok: false, message: 'Unknown action.' });
+}
+
+// Opening the /exec URL in a browser shows this, so you can check the deployment is live.
+function doGet() {
+  return surveyJson_({ ok: true, app: 'Habesha Outlet Survey', time: now_() });
+}
 
 var SURVEY_SHEET = 'Surveys';
 var USERS_SHEET = 'Users';
@@ -38,6 +51,7 @@ var SURVEY_HEADERS = ['id', 'date', 'baId', 'baName', 'outletId', 'outletName', 
   .concat(['reason', 'reasonOther', 'lat', 'lng', 'accuracy', 'distanceM']);
 
 var SHEET_HEADERS = {
+  Users: ['id', 'username', 'password', 'name', 'role', 'active'],
   Surveys: SURVEY_HEADERS,
   Presence: ['baId', 'baName', 'lastSeen', 'state', 'activity', 'lat', 'lng', 'accuracy', 'locTime', 'device'],
   Track: ['date', 'baId', 'baName', 'lat', 'lng', 'accuracy', 'activity'],
@@ -48,7 +62,7 @@ var SHEET_HEADERS = {
 };
 
 // Columns that must stay text (stops "0012" becoming 12, keeps ISO dates as typed)
-var TEXT_COLS = ['id', 'key', 'date', 'baId', 'baName', 'outletId', 'outletName', 'otherBrandName', 'reason',
+var TEXT_COLS = ['id', 'username', 'password', 'name', 'active', 'key', 'date', 'baId', 'baName', 'outletId', 'outletName', 'otherBrandName', 'reason',
   'reasonOther', 'lastSeen', 'locTime', 'activity', 'device', 'detail', 'type', 'state', 'role', 'status',
   'requestedBy', 'requestedByName', 'createdAt', 'updatedAt', 'resolvedBy', 'resolvedAt',
   'fromId', 'fromName', 'target', 'kind', 'title', 'body'];
@@ -673,4 +687,10 @@ function withLock_(fn) {
 function surveySetup() {
   Object.keys(SHEET_HEADERS).forEach(sheet_);
   tokenSecret_();
+  // First run only: add an admin so someone can sign in to /admin/login.
+  if (readUsers_().length === 0) {
+    var pass = Utilities.getUuid().slice(0, 8);
+    appendByHeader_(sheet_(USERS_SHEET), { id: 'ADMIN1', username: 'admin', password: pass, name: 'Admin', role: 'admin', active: 'yes' });
+    Logger.log('Admin account created. Username: admin  Password: ' + pass);
+  }
 }

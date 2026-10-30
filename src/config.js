@@ -1,5 +1,5 @@
-// Apps Script web app URL. Same /exec URL as the wheel app.
-// If the backend is ever redeployed to a new URL, change it here AND in the wheel app.
+// Apps Script web app URL (the survey app's own backend, see apps-script/Survey.gs).
+// Paste the URL ending in /exec from Deploy > New deployment > Web app.
 export const API_URL = 'https://script.google.com/macros/s/PASTE_YOUR_DEPLOYMENT_ID/exec'
 
 // Demo builds (vite --mode demo) never call the server.
