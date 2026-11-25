@@ -90,6 +90,7 @@ function surveyJson_(obj) {
 function surveyRoute_(body) {
   var handlers = {
     surveyLogin: surveyLogin_,
+    melaSession: surveyMelaSession_,
     lookupOutlet: surveyLookupOutlet_,
     outletPack: surveyOutletPack_,
     addSurvey: surveyAddSurvey_,
@@ -955,4 +956,59 @@ function onOpen() {
 function surveySetupFromMenu() {
   surveySetup();
   SpreadsheetApp.getUi().alert('Setup done. Surveys, Presence, Logins, Track, Flags, Outlets and Notifications tabs are ready.');
+}
+
+/* ================= MELA sign-in ================= */
+// MELA, the one-in-all app, signs a person in once and opens this app with a
+// ticket. The ticket names the person's username in this app, is signed with
+// MELA_KEY (Project settings > Script properties, same value as in MELA), and
+// works once, within two minutes of being made.
+
+var MELA_APP_ID = 'ba';
+
+function melaPad_(s) {
+  s = String(s);
+  while (s.length % 4) s += '=';
+  return s;
+}
+
+// Returns the username the ticket is for, or throws with a message for the person.
+function melaTicketUser_(ticket) {
+  var key = PropertiesService.getScriptProperties().getProperty('MELA_KEY');
+  if (!key) throw new Error('MELA sign-in is not switched on for this app yet. Ask your admin to add MELA_KEY.');
+  var parts = String(ticket || '').split('.');
+  if (parts.length !== 2) throw new Error('MELA sign-in link is not valid. Open the app from MELA again.');
+  var want = Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(parts[0], key)).replace(/=+$/, '');
+  if (want !== parts[1]) throw new Error('MELA sign-in link is not valid. Open the app from MELA again.');
+  var p;
+  try { p = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(melaPad_(parts[0]))).getDataAsString()); } catch (e) { p = null; }
+  if (!p || p.a !== MELA_APP_ID) throw new Error('MELA sign-in link is for another app.');
+  if (!(p.e > Date.now())) throw new Error('MELA sign-in link has expired. Open the app from MELA again.');
+  var cache = CacheService.getScriptCache();
+  if (cache.get('mela_' + p.n)) throw new Error('MELA sign-in link was already used. Open the app from MELA again.');
+  cache.put('mela_' + p.n, '1', 600);
+  return String(p.u || '').trim().toLowerCase();
+}
+
+// Same as surveyLogin_ without the password: MELA has already checked it.
+function surveyMelaSession_(body) {
+  var username;
+  try { username = melaTicketUser_(body.ticket); } catch (err) { return { ok: false, message: err.message }; }
+  var users = readUsers_();
+  var u = null;
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].username.toLowerCase() === username) { u = users[i]; break; }
+  }
+  if (!u) return { ok: false, message: 'There is no account with the username "' + username + '" in this app. Ask your admin to check MELA.' };
+  if (!u.active) return { ok: false, message: 'This account is blocked. Contact your admin.' };
+  var loc = body.location || {};
+  appendFast_(sheet_(LOGINS_SHEET), {
+    date: now_(), baId: u.id, baName: u.name, role: u.role,
+    lat: num_(loc.lat), lng: num_(loc.lng), accuracy: num_(loc.accuracy), device: ('MELA ' + String(body.device || '')).slice(0, 200)
+  });
+  if (u.role === 'ba' && loc.lat != null && loc.lng != null) {
+    appendTrack_(u, loc, 'Signed in');
+    tryLock_(3000, function () { upsertPresence_(u, { state: 'online', activity: 'Signed in', location: loc, device: body.device }); });
+  }
+  return { ok: true, user: { id: u.id, name: u.name, username: u.username, role: u.role, token: makeToken_(u) } };
 }
