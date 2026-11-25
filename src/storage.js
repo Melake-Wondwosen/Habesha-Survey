@@ -44,7 +44,11 @@ export const getUser = () => read(USER_KEY, null)
 export const setUser = (user) => write(USER_KEY, user)
 // Sign-out clears the session only. The queue stays, because phones are shared
 // and another BA's unsent surveys may be in it.
-export const clearUser = () => remove(USER_KEY)
+// Inside MELA, signing out here signs out of MELA too.
+export const clearUser = () => {
+  remove(USER_KEY)
+  try { if (window.parent !== window) window.parent.postMessage({ mela: 'signed-out' }, '*') } catch { /* not in MELA */ }
+}
 
 // Offline queue
 export const getQueue = () => read(QUEUE_KEY, [])

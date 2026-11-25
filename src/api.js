@@ -73,6 +73,15 @@ export async function login(username, password, location, need) {
   return { id: String(user.id), name: String(user.name), username: String(user.username), role, token: user.token }
 }
 
+// Sign-in from MELA: the ticket replaces the username and password.
+export async function melaLogin(ticket, location) {
+  const data = await post('melaSession', { ticket, location, device: deviceLabel() }, 45000)
+  const user = data.user
+  if (!user || !user.token) throw new Error('MELA sign-in worked but no session came back. Is Survey.gs updated?')
+  const role = ['manager', 'admin'].includes(user.role) ? user.role : 'ba'
+  return { id: String(user.id), name: String(user.name), username: String(user.username), role, token: user.token }
+}
+
 export const ping = (body) => post('ping', body)
 export const notifications = () => authed('notifications')
 export const fetchOutlets = (version) => authed('outlets', { version })
